@@ -128,39 +128,51 @@ impl BitCursor {
     pub fn read_bool(&mut self) -> BitCursorResult<bool> {
         Ok(self.read_bit()? == 1)
     }
+
     pub fn read_u2(&mut self) -> BitCursorResult<u2> {
         self.read_bits_as_u8(2)
     }
+
     pub fn read_u3(&mut self) -> BitCursorResult<u3> {
         self.read_bits_as_u8(3)
     }
+
     pub fn read_u4(&mut self) -> BitCursorResult<u4> {
         self.read_bits_as_u8(4)
     }
+
     pub fn read_u5(&mut self) -> BitCursorResult<u5> {
         self.read_bits_as_u8(5)
     }
+
     pub fn read_u6(&mut self) -> BitCursorResult<u6> {
         self.read_bits_as_u8(6)
     }
+
     pub fn read_u7(&mut self) -> BitCursorResult<u7> {
         self.read_bits_as_u8(7)
     }
+
     pub fn read_u8(&mut self) -> BitCursorResult<u8> {
         ReadBytesExt::read_u8(self).map_err(std::io::Error::into)
     }
+
     pub fn read_u14(&mut self) -> BitCursorResult<u14> {
         self.read_bits_as_u16(14)
     }
+
     pub fn read_u16(&mut self) -> BitCursorResult<u16> {
         ReadBytesExt::read_u16::<NetworkEndian>(self).map_err(std::io::Error::into)
     }
+
     pub fn read_u24(&mut self) -> BitCursorResult<u24> {
         ReadBytesExt::read_u24::<NetworkEndian>(self).map_err(std::io::Error::into)
     }
+
     pub fn read_u32(&mut self) -> BitCursorResult<u32> {
         ReadBytesExt::read_u32::<NetworkEndian>(self).map_err(std::io::Error::into)
     }
+
     pub fn read_u128(&mut self) -> BitCursorResult<u128> {
         ReadBytesExt::read_u128::<NetworkEndian>(self).map_err(std::io::Error::into)
     }
@@ -169,6 +181,17 @@ impl BitCursor {
 #[cfg(test)]
 mod tests {
     use crate::bitcursor::BitCursor;
+
+    #[test]
+    fn test_read() {
+        let data: Vec<u8> = vec![0b11110000, 0b00001111];
+        let mut cursor = BitCursor::new(data);
+
+        assert_eq!(cursor.read_u4().unwrap(), 15);
+        assert_eq!(cursor.read_u4().unwrap(), 0);
+        assert_eq!(cursor.read_u2().unwrap(), 0);
+        assert_eq!(cursor.read_u6().unwrap(), 15);
+    }
 
     #[test]
     fn read_on_non_byte_boundary() {
