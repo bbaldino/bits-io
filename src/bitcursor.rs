@@ -103,6 +103,16 @@ impl BitCursor {
         Ok(result)
     }
 
+    pub fn bytes_remaining(&self) -> usize {
+        match self.bit_pos {
+            0 => self.byte_cursor.get_ref().len() - self.byte_cursor.position() as usize,
+            // If we're in the middle of a byte, don't count that as a full byte remaining
+            // (Note that this is a somewhat arbitrary decision, but it's what makes more sense
+            // to me as of now)
+            _ => self.byte_cursor.get_ref().len() - self.byte_cursor.position() as usize - 1,
+        }
+    }
+
     pub fn read_bits_as_u8(&mut self, num_bits: usize) -> BitCursorResult<u8> {
         bit_read_helper::<u8>(self, num_bits)
     }
