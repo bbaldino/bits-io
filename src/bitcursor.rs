@@ -5,9 +5,6 @@ use std::{
 
 use thiserror::Error;
 
-use crate::types::*;
-use byteorder::{NetworkEndian, ReadBytesExt};
-
 #[derive(Debug, Error)]
 pub enum BitCursorError {
     #[error("BufferOverflow: {0}")]
@@ -22,7 +19,7 @@ impl From<std::io::Error> for BitCursorError {
     }
 }
 
-type BitCursorResult<T> = Result<T, BitCursorError>;
+pub type BitCursorResult<T> = Result<T, BitCursorError>;
 
 /// Similar to |std::io::Cursor| but designed to keep track of a buffer of bytes where amounts less
 /// than a single byte (i.e. some number of bits) can be read.
@@ -95,7 +92,7 @@ impl BitCursor {
         Ok(self.byte_cursor.get_ref()[self.byte_cursor.position() as usize])
     }
 
-    fn read_bit(&mut self) -> BitCursorResult<u8> {
+    pub fn read_bit(&mut self) -> BitCursorResult<u8> {
         let mask = 1u8 << (7 - self.bit_pos);
         let curr_byte = self.get_curr_byte()?;
         let result = (curr_byte & mask) >> (7 - self.bit_pos);
@@ -124,73 +121,23 @@ impl BitCursor {
     pub fn read_bits_as_u32(&mut self, num_bits: usize) -> BitCursorResult<u32> {
         bit_read_helper::<u32>(self, num_bits)
     }
-
-    pub fn read_bool(&mut self) -> BitCursorResult<bool> {
-        Ok(self.read_bit()? == 1)
-    }
-
-    pub fn read_u2(&mut self) -> BitCursorResult<u2> {
-        self.read_bits_as_u8(2)
-    }
-
-    pub fn read_u3(&mut self) -> BitCursorResult<u3> {
-        self.read_bits_as_u8(3)
-    }
-
-    pub fn read_u4(&mut self) -> BitCursorResult<u4> {
-        self.read_bits_as_u8(4)
-    }
-
-    pub fn read_u5(&mut self) -> BitCursorResult<u5> {
-        self.read_bits_as_u8(5)
-    }
-
-    pub fn read_u6(&mut self) -> BitCursorResult<u6> {
-        self.read_bits_as_u8(6)
-    }
-
-    pub fn read_u7(&mut self) -> BitCursorResult<u7> {
-        self.read_bits_as_u8(7)
-    }
-
-    pub fn read_u8(&mut self) -> BitCursorResult<u8> {
-        ReadBytesExt::read_u8(self).map_err(std::io::Error::into)
-    }
-
-    pub fn read_u14(&mut self) -> BitCursorResult<u14> {
-        self.read_bits_as_u16(14)
-    }
-
-    pub fn read_u16(&mut self) -> BitCursorResult<u16> {
-        ReadBytesExt::read_u16::<NetworkEndian>(self).map_err(std::io::Error::into)
-    }
-
-    pub fn read_u24(&mut self) -> BitCursorResult<u24> {
-        ReadBytesExt::read_u24::<NetworkEndian>(self).map_err(std::io::Error::into)
-    }
-
-    pub fn read_u32(&mut self) -> BitCursorResult<u32> {
-        ReadBytesExt::read_u32::<NetworkEndian>(self).map_err(std::io::Error::into)
-    }
-
-    pub fn read_u128(&mut self) -> BitCursorResult<u128> {
-        ReadBytesExt::read_u128::<NetworkEndian>(self).map_err(std::io::Error::into)
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::bitcursor::BitCursor;
+    use ux::*;
+
+    use crate::{bitcursor::BitCursor, bit_read::BitRead};
 
     #[test]
     fn test_read() {
         let data: Vec<u8> = vec![0b11110000, 0b00001111];
         let mut cursor = BitCursor::new(data);
 
-        assert_eq!(cursor.read_u4().unwrap(), 15);
-        assert_eq!(cursor.read_u4().unwrap(), 0);
-        assert_eq!(cursor.read_u2().unwrap(), 0);
-        assert_eq!(cursor.read_u6().unwrap(), 15);
+        assert_eq!(u4::read(&mut cursor).unwrap(), u4::new(15));
+        assert_eq!(u4::read(&mut cursor).unwrap(), u4::new(0));
+        assert_eq!(u2::read(&mut cursor).unwrap(), u2::new(0));
+        assert_eq!(u6::read(&mut cursor).unwrap(), u6::new(15));
     }
 
     #[test]
@@ -198,8 +145,8 @@ mod tests {
         let data: Vec<u8> = vec![0b11110000, 0b00001111];
         let mut cursor = BitCursor::new(data);
 
-        let _ = cursor.read_u4().unwrap();
-        assert!(cursor.read_u8().is_err());
+        let _ = u4::read(&mut cursor).unwrap();
+        assert!(u8::read(&mut cursor).is_err());
     }
 
     #[test]
@@ -207,7 +154,7 @@ mod tests {
         let data: Vec<u8> = vec![0b11110000];
         let mut cursor = BitCursor::new(data);
 
-        assert!(cursor.read_u16().is_err());
+        assert!(u16::read(&mut cursor).is_err());
     }
 
     #[test]
@@ -215,7 +162,7 @@ mod tests {
         let data: Vec<u8> = vec![0b11110000];
         let mut cursor = BitCursor::new(data);
 
-        let _ = cursor.read_u7();
-        assert!(cursor.read_u3().is_err());
+        let _ = u7::read(&mut cursor);
+        assert!(u3::read(&mut cursor).is_err());
     }
 }
