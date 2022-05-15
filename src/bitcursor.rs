@@ -134,10 +134,10 @@ mod tests {
         let data: Vec<u8> = vec![0b11110000, 0b00001111];
         let mut cursor = BitCursor::new(data);
 
-        assert_eq!(u4::read(&mut cursor).unwrap(), u4::new(15));
-        assert_eq!(u4::read(&mut cursor).unwrap(), u4::new(0));
-        assert_eq!(u2::read(&mut cursor).unwrap(), u2::new(0));
-        assert_eq!(u6::read(&mut cursor).unwrap(), u6::new(15));
+        assert_eq!(u4::bit_read(&mut cursor).unwrap(), u4::new(15));
+        assert_eq!(u4::bit_read(&mut cursor).unwrap(), u4::new(0));
+        assert_eq!(u2::bit_read(&mut cursor).unwrap(), u2::new(0));
+        assert_eq!(u6::bit_read(&mut cursor).unwrap(), u6::new(15));
     }
 
     #[test]
@@ -145,8 +145,8 @@ mod tests {
         let data: Vec<u8> = vec![0b11110000, 0b00001111];
         let mut cursor = BitCursor::new(data);
 
-        let _ = u4::read(&mut cursor).unwrap();
-        assert!(u8::read(&mut cursor).is_err());
+        let _ = u4::bit_read(&mut cursor).unwrap();
+        assert!(u8::bit_read(&mut cursor).is_err());
     }
 
     #[test]
@@ -154,7 +154,7 @@ mod tests {
         let data: Vec<u8> = vec![0b11110000];
         let mut cursor = BitCursor::new(data);
 
-        assert!(u16::read(&mut cursor).is_err());
+        assert!(u16::bit_read(&mut cursor).is_err());
     }
 
     #[test]
@@ -162,7 +162,7 @@ mod tests {
         let data: Vec<u8> = vec![0b11110000];
         let mut cursor = BitCursor::new(data);
 
-        let _ = u7::read(&mut cursor);
-        assert!(u3::read(&mut cursor).is_err());
+        let _ = u7::bit_read(&mut cursor);
+        assert!(u3::bit_read(&mut cursor).is_err());
     }
 }

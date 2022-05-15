@@ -6,11 +6,11 @@ use ux::*;
 /// A trait similar to std::io::Read, for reading bit-sized amounts from
 /// a BitCursor.
 pub trait BitRead: Sized {
-    fn read(cursor: &mut BitCursor) -> BitCursorResult<Self>;
+    fn bit_read(cursor: &mut BitCursor) -> BitCursorResult<Self>;
 }
 
 impl BitRead for bool {
-    fn read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
+    fn bit_read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
         Ok(cursor.read_bit()? == 1)
     }
 }
@@ -18,21 +18,21 @@ impl BitRead for bool {
 macro_rules! impl_bit_read {
     ($num_bits:expr,$type:ty,u8) => {
         impl BitRead for $type {
-            fn read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
+            fn bit_read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
                 Ok(<$type>::new(cursor.read_bits_as_u8($num_bits)?))
             }
         }
     };
     ($num_bits:expr,$type:ty,u16) => {
         impl BitRead for $type {
-            fn read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
+            fn bit_read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
                 Ok(<$type>::new(cursor.read_bits_as_u16($num_bits)?))
             }
         }
     };
     ($num_bits:expr,$type:ty,u32) => {
         impl BitRead for $type {
-            fn read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
+            fn bit_read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
                 Ok(<$type>::new(cursor.read_bits_as_u32($num_bits)?))
             }
         }
@@ -71,7 +71,7 @@ impl_bit_read!(30, u30, u32);
 impl_bit_read!(31, u31, u32);
 
 impl BitRead for u8 {
-    fn read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
+    fn bit_read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
         ReadBytesExt::read_u8(cursor).map_err(std::io::Error::into)
     }
 }
@@ -79,19 +79,19 @@ impl BitRead for u8 {
 // TODO: good way not to assume NetworkEndian for these?
 
 impl BitRead for u16 {
-    fn read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
+    fn bit_read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
         ReadBytesExt::read_u16::<NetworkEndian>(cursor).map_err(std::io::Error::into)
     }
 }
 
 impl BitRead for u32 {
-    fn read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
+    fn bit_read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
         ReadBytesExt::read_u32::<NetworkEndian>(cursor).map_err(std::io::Error::into)
     }
 }
 
 impl BitRead for u128 {
-    fn read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
+    fn bit_read(cursor: &mut BitCursor) -> BitCursorResult<Self> {
         ReadBytesExt::read_u128::<NetworkEndian>(cursor).map_err(std::io::Error::into)
     }
 }
