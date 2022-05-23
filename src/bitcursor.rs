@@ -5,7 +5,7 @@ use std::{
 
 use thiserror::Error;
 
-use crate::bit_seek::{BitSeek, BitSeekFrom};
+use crate::{bit_seek::{BitSeek, BitSeekFrom}, bit_read::BitRead};
 
 #[derive(Debug, Error)]
 pub enum BitCursorError {
@@ -133,6 +133,10 @@ impl BitCursor {
     pub fn read_bits_as_u32(&mut self, num_bits: usize) -> BitCursorResult<u32> {
         bit_read_helper::<u32>(self, num_bits)
     }
+
+    pub fn bit_read<T: BitRead>(&mut self) -> BitCursorResult<T> {
+        T::bit_read(self)
+    }
 }
 
 impl BitSeek for BitCursor {
@@ -140,20 +144,16 @@ impl BitSeek for BitCursor {
         let new_total_bit_pos: i64 = match pos {
             BitSeekFrom::Start(bytes, bits) => {
                 (bytes * 8 + bits) as i64
-                //let total_bit_delta = bytes * 8 + bits;
-                //((total_bit_delta / 8) as i64, (total_bit_delta % 8) as i64)
             },
             BitSeekFrom::Current(bytes, bits) => {
                 let total_bit_delta = bytes * 8 + bits;
                 let curr_total_bit_pos = self.curr_byte_position() * 8 + self.bit_pos as u64;
                 curr_total_bit_pos as i64 + total_bit_delta
-                //((new_total_bit_pos / 8) as i64, (new_total_bit_pos % 8) as i64)
             },
             BitSeekFrom::End(bytes, bits) => {
                 let total_bit_delta = bytes * 8 + bits;
                 let end_bit_pos = (self.length() * 8) as i64;
                 end_bit_pos + total_bit_delta
-                //((new_total_bit_pos / 8) as i64, (new_total_bit_pos % 8) as i64)
             },
         };
         let max_bit_pos = (self.length() * 8) as i64;
@@ -183,10 +183,10 @@ mod tests {
         let data: Vec<u8> = vec![0b11110000, 0b00001111];
         let mut cursor = BitCursor::new(data);
 
-        assert_eq!(u4::bit_read(&mut cursor).unwrap(), u4::new(15));
-        assert_eq!(u4::bit_read(&mut cursor).unwrap(), u4::new(0));
-        assert_eq!(u2::bit_read(&mut cursor).unwrap(), u2::new(0));
-        assert_eq!(u6::bit_read(&mut cursor).unwrap(), u6::new(15));
+        assert_eq!(cursor.bit_read::<u4>().unwrap(), u4::new(15));
+        assert_eq!(cursor.bit_read::<u4>().unwrap(), u4::new(0));
+        assert_eq!(cursor.bit_read::<u2>().unwrap(), u2::new(0));
+        assert_eq!(cursor.bit_read::<u6>().unwrap(), u6::new(15));
     }
 
     #[test]
@@ -194,8 +194,8 @@ mod tests {
         let data: Vec<u8> = vec![0b11110000, 0b00001111];
         let mut cursor = BitCursor::new(data);
 
-        let _ = u4::bit_read(&mut cursor).unwrap();
-        assert!(u8::bit_read(&mut cursor).is_err());
+        let _ = cursor.bit_read::<u4>().unwrap();
+        assert!(cursor.bit_read::<u8>().is_err());
     }
 
     #[test]
@@ -203,7 +203,7 @@ mod tests {
         let data: Vec<u8> = vec![0b11110000];
         let mut cursor = BitCursor::new(data);
 
-        assert!(u16::bit_read(&mut cursor).is_err());
+        assert!(cursor.bit_read::<u16>().is_err());
     }
 
     #[test]
@@ -211,8 +211,8 @@ mod tests {
         let data: Vec<u8> = vec![0b11110000];
         let mut cursor = BitCursor::new(data);
 
-        let _ = u7::bit_read(&mut cursor);
-        assert!(u3::bit_read(&mut cursor).is_err());
+        let _ = cursor.bit_read::<u7>();
+        assert!(cursor.bit_read::<u3>().is_err());
     }
 
     #[test]
@@ -227,13 +227,13 @@ mod tests {
         let mut cursor = BitCursor::new(data);
         // A valid seek
         assert_eq!((2, 2), cursor.seek(BitSeekFrom::Start(2, 2)).unwrap());
-        assert_eq!(u4::new(0b0011), u4::bit_read(&mut cursor).unwrap());
+        assert_eq!(u4::new(0b0011), cursor.bit_read::<u4>().unwrap());
         // A valid seek with bits > 1 byte
         assert_eq!((2, 2), cursor.seek(BitSeekFrom::Start(0, 18)).unwrap());
-        assert_eq!(u4::new(0b0011), u4::bit_read(&mut cursor).unwrap());
+        assert_eq!(u4::new(0b0011), cursor.bit_read::<u4>().unwrap());
         // A valid seek with bytes + overflowing bits
         assert_eq!((2, 2), cursor.seek(BitSeekFrom::Start(1, 10)).unwrap());
-        assert_eq!(u4::new(0b0011), u4::bit_read(&mut cursor).unwrap());
+        assert_eq!(u4::new(0b0011), cursor.bit_read::<u4>().unwrap());
         
         // Seek past the end
         assert!(cursor.seek(BitSeekFrom::Start(6, 0)).is_err());
@@ -259,34 +259,34 @@ mod tests {
         
         // A valid seek
         assert_eq!((2, 4), cursor.seek(BitSeekFrom::Current(1, 2)).unwrap());
-        assert_eq!(u4::new(0b1111), u4::bit_read(&mut cursor).unwrap());
+        assert_eq!(u4::new(0b1111), cursor.bit_read::<u4>().unwrap());
         reset(&mut cursor);
         // A valid seek with bits > 1 byte
         assert_eq!((2, 4), cursor.seek(BitSeekFrom::Current(0, 10)).unwrap());
-        assert_eq!(u4::new(0b1111), u4::bit_read(&mut cursor).unwrap());
+        assert_eq!(u4::new(0b1111), cursor.bit_read::<u4>().unwrap());
         reset(&mut cursor);
         // A valid seek with bytes + overflowing bits
         assert_eq!((3, 4), cursor.seek(BitSeekFrom::Current(1, 10)).unwrap());
-        assert_eq!(u4::new(0b0000), u4::bit_read(&mut cursor).unwrap());
+        assert_eq!(u4::new(0b0000), cursor.bit_read::<u4>().unwrap());
         reset(&mut cursor);
         // A valid seek with bytes + bits which overflow with the current position
         assert_eq!((3, 1), cursor.seek(BitSeekFrom::Current(1, 7)).unwrap());
-        assert_eq!(u4::new(0b1110), u4::bit_read(&mut cursor).unwrap());
+        assert_eq!(u4::new(0b1110), cursor.bit_read::<u4>().unwrap());
         reset(&mut cursor);
 
         // A valid seek backwards
         assert_eq!((0, 2), cursor.seek(BitSeekFrom::Current(-1, 0)).unwrap());
-        assert_eq!(u4::new(0b0011), u4::bit_read(&mut cursor).unwrap());
+        assert_eq!(u4::new(0b0011), cursor.bit_read::<u4>().unwrap());
         reset(&mut cursor);
 
         // A valid seek backwards with bits > 1 byte
         assert_eq!((0, 0), cursor.seek(BitSeekFrom::Current(0, -10)).unwrap());
-        assert_eq!(u4::new(0b0000), u4::bit_read(&mut cursor).unwrap());
+        assert_eq!(u4::new(0b0000), cursor.bit_read::<u4>().unwrap());
         reset(&mut cursor);
 
         // A valid seek backwards with bytes + bits which overflow with the current position
         assert_eq!((0, 7), cursor.seek(BitSeekFrom::Current(0, -3)).unwrap());
-        assert_eq!(u4::new(0b1111), u4::bit_read(&mut cursor).unwrap());
+        assert_eq!(u4::new(0b1111), cursor.bit_read::<u4>().unwrap());
 
         // Seek past the end
         assert!(cursor.seek(BitSeekFrom::Current(6, 0)).is_err());
@@ -324,10 +324,10 @@ mod tests {
 
         // Seek back with bytes + bits
         assert_eq!((3, 6), cursor.seek(BitSeekFrom::End(-1, -2)).unwrap());
-        assert_eq!(u4::new(0b0000), u4::bit_read(&mut cursor).unwrap());
+        assert_eq!(u4::new(0b0000), cursor.bit_read::<u4>().unwrap());
         // Seek back with bytes + bits > 1 byte
         assert_eq!((2, 6), cursor.seek(BitSeekFrom::End(-1, -10)).unwrap());
-        assert_eq!(u4::new(0b1111), u4::bit_read(&mut cursor).unwrap());
+        assert_eq!(u4::new(0b1111), cursor.bit_read::<u4>().unwrap());
 
         // Seek back past the front
         assert!(cursor.seek(BitSeekFrom::End(-6, 0)).is_err());
