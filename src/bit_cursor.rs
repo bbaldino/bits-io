@@ -100,41 +100,54 @@ where
 
 #[cfg(test)]
 mod test {
+    use std::io::{Seek, SeekFrom};
+
     use ux::u1;
 
     use super::BitCursor;
     use crate::bit_read::BitRead;
 
     #[test]
-    fn test_bitcursor_read() {
+    fn test_read() {
+        let data = vec![0b11110000, 0b00001111];
+        let mut cursor = BitCursor::new(data);
+
+        let mut read_buf = [u1::new(0); 4];
+        assert_eq!(cursor.read(&mut read_buf).unwrap(), 4);
+        assert_eq!(read_buf, [u1::new(1), u1::new(1), u1::new(1), u1::new(1)]);
+
+        assert_eq!(cursor.read(&mut read_buf).unwrap(), 4);
+        assert_eq!(read_buf, [u1::new(0), u1::new(0), u1::new(0), u1::new(0)]);
+
+        assert_eq!(cursor.read(&mut read_buf).unwrap(), 4);
+        assert_eq!(read_buf, [u1::new(0), u1::new(0), u1::new(0), u1::new(0)]);
+
+        assert_eq!(cursor.read(&mut read_buf).unwrap(), 4);
+        assert_eq!(read_buf, [u1::new(1), u1::new(1), u1::new(1), u1::new(1)]);
+
+        assert_eq!(cursor.read(&mut read_buf).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_seek() {
         let data = vec![0b11001100, 0b00110011];
         let mut cursor = BitCursor::new(data);
 
         let mut read_buf = [u1::new(0); 2];
+
+        cursor.seek(SeekFrom::End(-2)).expect("valid seek");
+        // Should now be reading the last 2 bits
         assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
         assert_eq!(read_buf, [u1::new(1), u1::new(1)]);
-
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
-        assert_eq!(read_buf, [u1::new(0), u1::new(0)]);
-
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
-        assert_eq!(read_buf, [u1::new(1), u1::new(1)]);
-
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
-        assert_eq!(read_buf, [u1::new(0), u1::new(0)]);
-
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
-        assert_eq!(read_buf, [u1::new(0), u1::new(0)]);
-
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
-        assert_eq!(read_buf, [u1::new(1), u1::new(1)]);
-
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
-        assert_eq!(read_buf, [u1::new(0), u1::new(0)]);
-
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
-        assert_eq!(read_buf, [u1::new(1), u1::new(1)]);
-
         assert_eq!(cursor.read(&mut read_buf).unwrap(), 0);
+
+        // Now 4 bits from the end
+        cursor.seek(SeekFrom::Current(-4)).expect("valid seek");
+        assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
+        assert_eq!(read_buf, [u1::new(0), u1::new(0)]);
+
+        cursor.seek(SeekFrom::Start(4)).expect("valid seek");
+        assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
+        assert_eq!(read_buf, [u1::new(1), u1::new(1)]);
     }
 }
