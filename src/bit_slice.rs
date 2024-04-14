@@ -102,16 +102,9 @@ where
 {
     fn read(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
         let slice = self.as_bit_slice();
-        println!(
-            "BitRead for slice, slice len = {}, buf len = {}",
-            slice.len(),
-            buf.len()
-        );
         let n = slice.len().min(buf.len());
-        println!("n: {n}");
         // TODO: optimize...
         for (i, bit) in buf.iter_mut().enumerate().take(n) {
-            println!("writing bit");
             *bit = slice.at(i as u64);
         }
         Ok(n)
