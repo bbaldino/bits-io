@@ -3,31 +3,23 @@
 BitCursor is similar to std::io::Cursor, but allows reading various amounts of bits from a given buffer in addition
 to byte-sized chunks.  It's built on top of the [ux](https://crates.io/crates/ux) crate for types.
 
-### Examples
-```rust
-let data: Vec<u8> = vec![0b11110000, 0b00001111];
-let mut cursor = BitCursor::new(data);
 
-assert_eq!(cursor.bit_read::<u4>().unwrap(), 15);
-assert_eq!(cursor.bit_read::<u4>().unwrap(), 0);
-assert_eq!(cursor.bit_read::<u2>().unwrap(), 0);
-assert_eq!(cursor.bit_read::<u6>().unwrap(), 15);
-```
+# Design
 
-It also supports seeking via `BitSeek`, which is similar to `Seek`:
-```rust
-let data: Vec<u8> = vec![0b11110000, 0b00001111];
-let mut cursor = BitCursor::new(data);
+## Traits
 
-assert_eq!((1, 0), cursor.seek(BitSeekFrom::Start(1, 0)).unwrap());
-assert_eq!(cursor.bit_read::<u4>().unwrap(), 0);
-
-assert_eq!((0, 3), cursor.seek(BitSeekFrom::Current(0, -6)).unwrap());
-assert_eq!(cursor.bit_read::<u4>().unwrap(), 0b1100);
+### `BitRead`
+`BitRead` is analogus to the [`std::io::Read`](https://doc.rust-lang.org/std/io/trait.Read.html) trait, but its API is defined in terms of reading from "bit slices" instead of `u8` slices (`&[u8]`) like `std::io::Read`.
 
 
-assert_eq!((0, 3), cursor.seek(BitSeekFrom::End(0, -4)).unwrap());
-assert_eq!(cursor.bit_read::<u4>().unwrap(), 0b1111);
-```
+### `BitWrite`
+`BitWrite` is analogus to the [`std::io::Write`](https://doc.rust-lang.org/std/io/trait.Write.html) trait, but its API is defined in terms of writing to "bit slices" instead of `u8` slices (`&[u8]`) like `std::io::Write`.
 
 
+## Types
+
+### `BitCursor`
+`BitCursor` is analgous to the [`std::io::Cursor`](https://doc.rust-lang.org/std/io/struct.Cursor.html) type, but its API is defined in terms of bits instead of bytes.
+
+### `BitSlice`/`BitSliceMut`
+The `std::io` types' APIs often use the `&[u8]` type for 'slices', so `BitCursor`'s equivalent would be to use a slice of `u1`: `&[u1]`, but, for ergonomic reasons, we instead use `BitSlice`/`BitSliceMut` types to mimic `&[u1]` and `&mut [u1]`.
