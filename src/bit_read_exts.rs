@@ -1,11 +1,12 @@
 use std::ops::{BitOrAssign, ShlAssign};
 
+use num_traits::ConstZero;
 use ux::*;
 
 use crate::{bit_read::BitRead, byte_order::ByteOrder};
 
 fn bit_read_exts_helper<
-    T: Default + ShlAssign<u32> + BitOrAssign + From<u1>,
+    T: ConstZero + ShlAssign<u32> + BitOrAssign + From<u1>,
     const N: usize,
     U: BitRead + ?Sized,
 >(
@@ -13,9 +14,9 @@ fn bit_read_exts_helper<
 ) -> std::io::Result<T> {
     // TODO: it'd be nice not to do this bit-by-bit.  I think once we get the from_xxx_bytes methods
     // in ux those could work here.
-    let mut read_buf = [u1::default(); N];
+    let mut read_buf = [u1::ZERO; N];
     buf.read_exact(&mut read_buf)?;
-    let mut val = T::default();
+    let mut val = T::ZERO;
     for bit in read_buf.iter() {
         val <<= 1;
         val |= (*bit).into();
