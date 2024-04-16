@@ -76,6 +76,22 @@ impl<'a> BitSlice<'a> {
     }
 }
 
+impl std::io::Read for BitSlice<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match self.start_bit_index % 8 {
+            0 => {
+                let current_byte_pos = (self.start_bit_index / 8) as usize;
+                let mut this = &self.buf[current_byte_pos..];
+                std::io::Read::read(&mut this, buf)
+            }
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Attempted byte-level read when not on byte boundary",
+            )),
+        }
+    }
+}
+
 pub trait AsBitSlice {
     fn as_bit_slice(&self) -> BitSlice;
 }
@@ -98,9 +114,9 @@ impl AsBitSlice for Vec<u8> {
 
 impl<T> BitRead for T
 where
-    T: AsBitSlice,
+    T: AsBitSlice + std::io::Read,
 {
-    fn read(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
+    fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
         let slice = self.as_bit_slice();
         let n = slice.len().min(buf.len());
         // TODO: optimize...

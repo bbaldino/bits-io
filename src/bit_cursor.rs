@@ -87,44 +87,35 @@ where
     }
 }
 
-impl<T> BitRead for BitCursor<T>
+impl<T> Read for BitCursor<T>
 where
     T: AsBitSlice,
 {
-    fn read(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
-        let n = BitRead::read(&mut self.remaining_slice(), buf)?;
-        self.pos += n as u64;
-        Ok(n)
-    }
-}
-
-impl<T> Read for BitCursor<T>
-where
-    T: AsRef<[u8]>,
-{
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         match self.pos % 8 {
-            0 => {
-                // Our position is in bits, so convert it to bytes
-                let current_byte_pos = (self.pos / 8) as usize;
-                // 'inner' is already a u8 slice, so we just grab its length
-                let remaining_slice_len_bytes = self.inner.as_ref().len();
-                let len = current_byte_pos.min(remaining_slice_len_bytes);
-
-                let mut this = &self.inner.as_ref()[len..];
-                match Read::read(&mut this, buf) {
-                    Ok(n) => {
-                        self.pos += (n * 8) as u64;
-                        Ok(n)
-                    }
-                    Err(e) => Err(e),
+            0 => match self.remaining_slice().read(buf) {
+                Ok(n) => {
+                    self.pos += (n * 8) as u64;
+                    Ok(n)
                 }
-            }
+                Err(e) => Err(e),
+            },
             _ => Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "Attempted byte-level read when not on byte boundary",
             )),
         }
+    }
+}
+
+impl<T> BitRead for BitCursor<T>
+where
+    T: AsBitSlice,
+{
+    fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
+        let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
+        self.pos += n as u64;
+        Ok(n)
     }
 }
 
@@ -135,7 +126,7 @@ mod test {
     use ux::u1;
 
     use super::BitCursor;
-    use crate::{bit_read::BitRead, bit_read_exts::BitReadExts};
+    use crate::bit_read::BitRead;
 
     #[test]
     fn test_read() {
@@ -143,19 +134,19 @@ mod test {
         let mut cursor = BitCursor::new(data);
 
         let mut read_buf = [u1::new(0); 4];
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 4);
+        assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 4);
         assert_eq!(read_buf, [u1::new(1), u1::new(1), u1::new(1), u1::new(1)]);
 
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 4);
+        assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 4);
         assert_eq!(read_buf, [u1::new(0), u1::new(0), u1::new(0), u1::new(0)]);
 
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 4);
+        assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 4);
         assert_eq!(read_buf, [u1::new(0), u1::new(0), u1::new(0), u1::new(0)]);
 
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 4);
+        assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 4);
         assert_eq!(read_buf, [u1::new(1), u1::new(1), u1::new(1), u1::new(1)]);
 
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 0);
+        assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 0);
     }
 
     #[test]
@@ -167,17 +158,17 @@ mod test {
 
         cursor.seek(SeekFrom::End(-2)).expect("valid seek");
         // Should now be reading the last 2 bits
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
+        assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 2);
         assert_eq!(read_buf, [u1::new(1), u1::new(1)]);
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 0);
+        assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 0);
 
         // Now 4 bits from the end
         cursor.seek(SeekFrom::Current(-4)).expect("valid seek");
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
+        assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 2);
         assert_eq!(read_buf, [u1::new(0), u1::new(0)]);
 
         cursor.seek(SeekFrom::Start(4)).expect("valid seek");
-        assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
+        assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 2);
         assert_eq!(read_buf, [u1::new(1), u1::new(1)]);
     }
 
