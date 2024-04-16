@@ -12,7 +12,7 @@ pub trait BitRead {
 
 fn read_exact_helper<R: BitRead + ?Sized>(this: &mut R, mut buf: &mut [u1]) -> std::io::Result<()> {
     while !buf.is_empty() {
-        // Note: unlike std::io::cursor, we don't have a special case for an 'interrupted'
+        // Note: unlike std::io::Read, we don't have a special case for an 'interrupted'
         // error, since we don't have access to all the error data it uses.
         // TODO: look into if we can replicate the is_interrupted logic here somehow.
         match this.read(buf) {

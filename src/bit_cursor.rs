@@ -1,4 +1,4 @@
-use std::io::{Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom};
 
 use crate::{
     bit_read::BitRead,
@@ -98,6 +98,36 @@ where
     }
 }
 
+impl<T> Read for BitCursor<T>
+where
+    T: AsRef<[u8]>,
+{
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match self.pos % 8 {
+            0 => {
+                // Our position is in bits, so convert it to bytes
+                let current_byte_pos = (self.pos / 8) as usize;
+                // 'inner' is already a u8 slice, so we just grab its length
+                let remaining_slice_len_bytes = self.inner.as_ref().len();
+                let len = current_byte_pos.min(remaining_slice_len_bytes);
+
+                let mut this = &self.inner.as_ref()[len..];
+                match Read::read(&mut this, buf) {
+                    Ok(n) => {
+                        self.pos += (n * 8) as u64;
+                        Ok(n)
+                    }
+                    Err(e) => Err(e),
+                }
+            }
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Attempted byte-level read when not on byte boundary",
+            )),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::io::{Seek, SeekFrom};
@@ -105,7 +135,7 @@ mod test {
     use ux::u1;
 
     use super::BitCursor;
-    use crate::bit_read::BitRead;
+    use crate::{bit_read::BitRead, bit_read_exts::BitReadExts};
 
     #[test]
     fn test_read() {
@@ -149,5 +179,17 @@ mod test {
         cursor.seek(SeekFrom::Start(4)).expect("valid seek");
         assert_eq!(cursor.read(&mut read_buf).unwrap(), 2);
         assert_eq!(read_buf, [u1::new(1), u1::new(1)]);
+    }
+
+    #[test]
+    fn test_read_bytes() {
+        let data: Vec<u8> = vec![1, 2, 3, 4];
+        let mut cursor = BitCursor::new(data);
+
+        let mut buf = [0u8; 2];
+        std::io::Read::read(&mut cursor, &mut buf).expect("valid read");
+        assert_eq!(buf, [1, 2]);
+        std::io::Read::read(&mut cursor, &mut buf).expect("valid read");
+        assert_eq!(buf, [3, 4]);
     }
 }
