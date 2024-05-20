@@ -5,6 +5,7 @@ use ux::u1;
 use crate::{
     bit_read::BitRead,
     error::{Error, Result},
+    util::{get_bit, get_start_end_bit_index_from_range},
 };
 
 /// A slice of bits.  |start_bit_index| is inclusive, |end_bit_index| is exclusive
@@ -29,7 +30,7 @@ impl BitSlice<'_> {
         (self.end_bit_index - self.start_bit_index) as usize
     }
 
-    /// Retrive the [`u1`] at the given index.  Panics if index is out-of-bounds.
+    /// Retrieve the [`u1`] at the given index.  Panics if index is out-of-bounds.
     ///
     /// * `index`: The index.
     pub fn at(&self, index: u64) -> u1 {
@@ -96,8 +97,8 @@ pub trait AsBitSlice {
     fn as_bit_slice(&self) -> BitSlice;
 }
 
-impl AsBitSlice for BitSlice<'_> {
-    fn as_bit_slice(&self) -> BitSlice {
+impl<'a> AsBitSlice for BitSlice<'a> {
+    fn as_bit_slice(&self) -> BitSlice<'a> {
         self.clone()
     }
 }
@@ -125,43 +126,4 @@ where
         }
         Ok(n)
     }
-}
-
-/// Get the start and end bit indices from the given |range|, where |len| represents the length of
-/// the item being indexed.  The returned start_bit_index is inclusive and end_bit_index is
-/// exclusive.
-pub(crate) fn get_start_end_bit_index_from_range<T: RangeBounds<u64>>(
-    range: &T,
-    len: usize,
-) -> (u64, u64) {
-    let start_bit_index = match range.start_bound() {
-        std::ops::Bound::Included(&s) => s,
-        std::ops::Bound::Excluded(s) => s + 1,
-        std::ops::Bound::Unbounded => 0,
-    };
-    let end_bit_index = match range.end_bound() {
-        std::ops::Bound::Included(s) => s + 1,
-        std::ops::Bound::Excluded(&s) => s,
-        // The end bit index is exclusive, so to handle the case where the length is 0 we make sure
-        // it's always at least '1'.
-        std::ops::Bound::Unbounded => std::cmp::max(len, 1) as u64,
-    };
-    (start_bit_index, end_bit_index)
-}
-
-/// Get the |bit_index| bits of |byte| as a u1
-pub(crate) fn get_bit(byte: u8, bit_index: u64) -> u1 {
-    let mask = match bit_index {
-        0 => 0b10000000,
-        1 => 0b01000000,
-        2 => 0b00100000,
-        3 => 0b00010000,
-        4 => 0b00001000,
-        5 => 0b00000100,
-        6 => 0b00000010,
-        7 => 0b00000001,
-        _ => unreachable!(),
-    };
-    let result = byte & mask;
-    u1::new(result >> (7 - bit_index))
 }

@@ -1,8 +1,9 @@
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Read, Seek, SeekFrom, Write};
 
 use crate::{
     bit_read::BitRead,
     bit_slice::{AsBitSlice, BitSlice},
+    bit_slice_mut::AsBitSliceMut,
 };
 
 #[derive(Debug, Default, Eq, PartialEq)]
@@ -116,6 +117,19 @@ where
         let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
         self.pos += n as u64;
         Ok(n)
+    }
+}
+
+impl<T> Write for BitCursor<T>
+where
+    T: AsBitSliceMut,
+{
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        todo!()
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
     }
 }
 
