@@ -1,10 +1,8 @@
 use std::io::{Read, Seek, SeekFrom, Write};
 
-use crate::{
-    bit_read::BitRead,
-    bit_slice::{AsBitSlice, BitSlice},
-    bit_slice_mut::AsBitSliceMut,
-};
+use bitvec::{field::BitField, order::BitOrder, slice::BitSlice, store::BitStore, vec::BitVec};
+
+use crate::bit_read::BitRead;
 
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct BitCursor<T> {
@@ -36,17 +34,25 @@ impl<T> BitCursor<T> {
     }
 }
 
-impl<T> BitCursor<T>
+impl<T, O> BitCursor<BitVec<T, O>>
 where
-    T: AsBitSlice,
+    T: BitStore,
+    O: BitOrder,
 {
-    pub fn remaining_slice(&self) -> BitSlice {
-        let len = self.pos.min(self.inner.as_bit_slice().len() as u64);
-        self.inner.as_bit_slice().get_slice(len..).unwrap()
+    pub fn remaining_slice(&self) -> &BitSlice<T, O> {
+        let remaining_slice = self.inner.as_bitslice();
+        let len = self.pos.min(remaining_slice.len() as u64);
+        &remaining_slice[(len as usize)..]
+    }
+
+    pub fn remaining_slice_mut(&mut self) -> &mut BitSlice<T, O> {
+        let remaining_slice = self.inner.as_mut_bitslice();
+        let len = self.pos.min(remaining_slice.len() as u64);
+        &mut remaining_slice[(len as usize)..]
     }
 
     pub fn is_empty(&self) -> bool {
-        self.pos >= self.inner.as_bit_slice().len() as u64
+        self.pos >= self.remaining_slice().len() as u64
     }
 }
 
@@ -62,17 +68,18 @@ where
     }
 }
 
-impl<T> Seek for BitCursor<T>
+impl<T, O> Seek for BitCursor<BitVec<T, O>>
 where
-    T: AsBitSlice,
+    T: BitStore,
+    O: BitOrder,
 {
-    fn seek(&mut self, style: std::io::SeekFrom) -> std::io::Result<u64> {
+    fn seek(&mut self, style: SeekFrom) -> std::io::Result<u64> {
         let (base_pos, offset) = match style {
             SeekFrom::Start(n) => {
                 self.pos = n;
                 return Ok(self.pos);
             }
-            SeekFrom::End(n) => (self.inner.as_bit_slice().len() as u64, n),
+            SeekFrom::End(n) => (self.inner.as_bitslice().len() as u64, n),
             SeekFrom::Current(n) => (self.pos, n),
         };
         match base_pos.checked_add_signed(offset) {
@@ -88,9 +95,24 @@ where
     }
 }
 
-impl<T> Read for BitCursor<T>
+impl<T, O> BitCursor<BitVec<T, O>>
 where
-    T: AsBitSlice,
+    T: BitStore,
+    O: BitOrder,
+    BitSlice<T, O>: BitField,
+{
+    fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
+        let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
+        self.pos += n as u64;
+        Ok(n)
+    }
+}
+
+impl<T, O> Read for BitCursor<BitVec<T, O>>
+where
+    T: BitStore,
+    O: BitOrder,
+    BitSlice<T, O>: BitField,
 {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         match self.pos % 8 {
@@ -109,23 +131,37 @@ where
     }
 }
 
-impl<T> BitRead for BitCursor<T>
+impl<T, O> BitRead for BitCursor<BitVec<T, O>>
 where
-    T: AsBitSlice,
+    T: BitStore,
+    O: BitOrder,
+    BitSlice<T, O>: BitField,
 {
     fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
-        let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
-        self.pos += n as u64;
-        Ok(n)
+        BitCursor::read_bits(self, buf)
     }
 }
 
-impl<T> Write for BitCursor<T>
+impl<T, O> Write for BitCursor<BitVec<T, O>>
 where
-    T: AsBitSliceMut,
+    T: BitStore,
+    O: BitOrder,
+    BitSlice<T, O>: BitField,
 {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        todo!()
+        match self.pos % 8 {
+            0 => match self.remaining_slice_mut().write(buf) {
+                Ok(n) => {
+                    self.pos += (n * 8) as u64;
+                    Ok(n)
+                }
+                Err(e) => Err(e),
+            },
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Attempted byte-level write when not on byte boundary",
+            )),
+        }
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
@@ -137,14 +173,14 @@ where
 mod test {
     use std::io::{Seek, SeekFrom};
 
+    use bitvec::{order::Msb0, vec::BitVec};
     use ux::u1;
 
     use super::BitCursor;
-    use crate::bit_read::BitRead;
 
     #[test]
     fn test_read() {
-        let data = vec![0b11110000, 0b00001111];
+        let data = BitVec::<u8, Msb0>::from_vec(vec![0b11110000, 0b00001111]);
         let mut cursor = BitCursor::new(data);
 
         let mut read_buf = [u1::new(0); 4];
@@ -165,7 +201,7 @@ mod test {
 
     #[test]
     fn test_seek() {
-        let data = vec![0b11001100, 0b00110011];
+        let data = BitVec::<u8, Msb0>::from_vec(vec![0b11001100, 0b00110011]);
         let mut cursor = BitCursor::new(data);
 
         let mut read_buf = [u1::new(0); 2];
@@ -188,7 +224,7 @@ mod test {
 
     #[test]
     fn test_read_bytes() {
-        let data: Vec<u8> = vec![1, 2, 3, 4];
+        let data = BitVec::<u8, Msb0>::from_vec(vec![1, 2, 3, 4]);
         let mut cursor = BitCursor::new(data);
 
         let mut buf = [0u8; 2];

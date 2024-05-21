@@ -210,16 +210,16 @@ impl<T> BitReadExts for T where T: BitRead {}
 
 #[cfg(test)]
 mod test {
-    use ux::u1;
+    use bitvec::{order::Msb0, vec::BitVec};
 
     use super::BitReadExts;
-    use crate::bit_cursor::BitCursor;
+    use crate::{bit_cursor::BitCursor, byte_order::NetworkOrder};
 
     #[test]
     fn test_read() {
-        let data: Vec<u8> = vec![0b10000000];
+        let data = BitVec::<u8, Msb0>::from_slice(&42u32.to_be_bytes());
         let mut cursor = BitCursor::new(data);
 
-        assert_eq!(cursor.read_u1().unwrap(), u1::new(1));
+        assert_eq!(cursor.read_u32::<NetworkOrder>().unwrap(), 42);
     }
 }

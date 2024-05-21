@@ -10,3 +10,4 @@ thiserror = "1.0.58"
 paste = "1"
 ux = { path = "../uX", features = ["num-traits"] }
 num-traits = "0.2"
+bitvec = "1.0.1"
