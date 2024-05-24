@@ -1,4 +1,3 @@
-use bitvec::{field::BitField, order::BitOrder, slice::BitSlice, store::BitStore};
 use ux::u1;
 
 pub trait BitRead: std::io::Read {
@@ -32,20 +31,5 @@ fn read_bits_exact_helper<R: BitRead + ?Sized>(
         ))
     } else {
         Ok(())
-    }
-}
-
-impl<T, O> BitRead for &BitSlice<T, O>
-where
-    T: BitStore,
-    O: BitOrder,
-    BitSlice<T, O>: BitField,
-{
-    fn read_bits(&mut self, buf: &mut [u1]) -> std::io::Result<usize> {
-        let n = self.len().min(buf.len());
-        for (i, bit) in buf.iter_mut().enumerate().take(n) {
-            *bit = self[i].into()
-        }
-        Ok(n)
     }
 }

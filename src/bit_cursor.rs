@@ -1,8 +1,12 @@
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::{
+    fmt::LowerHex,
+    io::{Read, Seek, SeekFrom, Write},
+    ops::Range,
+};
 
 use bitvec::{field::BitField, order::BitOrder, slice::BitSlice, store::BitStore, vec::BitVec};
 
-use crate::bit_read::BitRead;
+use crate::{bit_read::BitRead, bit_write::BitWrite};
 
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct BitCursor<T> {
@@ -40,15 +44,49 @@ where
     O: BitOrder,
 {
     pub fn remaining_slice(&self) -> &BitSlice<T, O> {
-        let remaining_slice = self.inner.as_bitslice();
-        let len = self.pos.min(remaining_slice.len() as u64);
-        &remaining_slice[(len as usize)..]
+        let len = self.pos.min(self.inner.capacity() as u64);
+        &self.inner.as_bitslice()[(len as usize)..]
     }
 
     pub fn remaining_slice_mut(&mut self) -> &mut BitSlice<T, O> {
-        let remaining_slice = self.inner.as_mut_bitslice();
-        let len = self.pos.min(remaining_slice.len() as u64);
-        &mut remaining_slice[(len as usize)..]
+        let start = self.pos.min(self.inner.capacity() as u64);
+        &mut self.inner.as_mut_bitslice()[(start as usize)..]
+    }
+
+    /// Grab a sub-cursor representing the given range.  The range is relevant to the _current_
+    /// position of the cursor.
+    /// TODO: BitSlice doesn't support ranges on anything that's RangeBounds, it implements the
+    /// individual range types.  For now, just support Range here, and in future maybe impl Index
+    /// with different range types for this as well.
+    /// TODO: i think we're going to need to move this to a trait
+    pub fn sub_cursor(&self, range: Range<usize>) -> BitCursor<&BitSlice<T, O>> {
+        let slice = &self.remaining_slice()[range];
+        BitCursor::new(slice)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.pos >= self.remaining_slice().len() as u64
+    }
+}
+
+impl<T, O> BitCursor<&BitSlice<T, O>>
+where
+    T: BitStore,
+    O: BitOrder,
+{
+    pub fn remaining_slice(&self) -> &BitSlice<T, O> {
+        let len = self.pos.min(self.inner.len() as u64);
+        &self.inner[(len as usize)..]
+    }
+
+    /// Grab a sub-cursor representing the given range.  The range is relevant to the _current_
+    /// position of the cursor.
+    /// TODO: BitSlice doesn't support ranges on anything that's RangeBounds, it implements the
+    /// individual range types.  For now, just support Range here, and in future maybe impl Index
+    /// with different range types for this as well.
+    pub fn sub_cursor(&self, range: Range<usize>) -> BitCursor<&BitSlice<T, O>> {
+        let slice = &self.remaining_slice()[range];
+        BitCursor::new(slice)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -68,7 +106,7 @@ where
     }
 }
 
-impl<T, O> Seek for BitCursor<BitVec<T, O>>
+impl<T, O> Seek for BitCursor<&BitSlice<T, O>>
 where
     T: BitStore,
     O: BitOrder,
@@ -79,7 +117,7 @@ where
                 self.pos = n;
                 return Ok(self.pos);
             }
-            SeekFrom::End(n) => (self.inner.as_bitslice().len() as u64, n),
+            SeekFrom::End(n) => (self.inner.len() as u64, n),
             SeekFrom::Current(n) => (self.pos, n),
         };
         match base_pos.checked_add_signed(offset) {
@@ -95,20 +133,57 @@ where
     }
 }
 
-impl<T, O> BitCursor<BitVec<T, O>>
+impl<T, O> Seek for BitCursor<BitVec<T, O>>
+where
+    T: BitStore,
+    O: BitOrder,
+{
+    fn seek(&mut self, style: SeekFrom) -> std::io::Result<u64> {
+        let (base_pos, offset) = match style {
+            SeekFrom::Start(n) => {
+                self.pos = n;
+                return Ok(self.pos);
+            }
+            SeekFrom::End(n) => (self.inner.len() as u64, n),
+            SeekFrom::Current(n) => (self.pos, n),
+        };
+        match base_pos.checked_add_signed(offset) {
+            Some(n) => {
+                self.pos = n;
+                Ok(self.pos)
+            }
+            None => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid seek to a negative or overflowing position",
+            )),
+        }
+    }
+}
+
+impl<T, O> Read for BitCursor<BitVec<T, O>>
 where
     T: BitStore,
     O: BitOrder,
     BitSlice<T, O>: BitField,
 {
-    fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
-        let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
-        self.pos += n as u64;
-        Ok(n)
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match self.pos % 8 {
+            0 => match self.remaining_slice().read(buf) {
+                Ok(n) => {
+                    self.pos += (n * 8) as u64;
+                    Ok(n)
+                }
+                Err(e) => Err(e),
+            },
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Attempted byte-level read when not on byte boundary",
+            )),
+        }
     }
 }
 
-impl<T, O> Read for BitCursor<BitVec<T, O>>
+impl<T, O> Read for BitCursor<&BitSlice<T, O>>
 where
     T: BitStore,
     O: BitOrder,
@@ -138,7 +213,22 @@ where
     BitSlice<T, O>: BitField,
 {
     fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
-        BitCursor::read_bits(self, buf)
+        let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
+        self.pos += n as u64;
+        Ok(n)
+    }
+}
+
+impl<T, O> BitRead for BitCursor<&BitSlice<T, O>>
+where
+    T: BitStore,
+    O: BitOrder,
+    BitSlice<T, O>: BitField,
+{
+    fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
+        let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
+        self.pos += n as u64;
+        Ok(n)
     }
 }
 
@@ -169,12 +259,83 @@ where
     }
 }
 
+impl<T, O> Write for BitCursor<&mut BitSlice<T, O>>
+where
+    T: BitStore,
+    O: BitOrder,
+    BitSlice<T, O>: BitField,
+{
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match self.pos % 8 {
+            0 => match self.inner.write(buf) {
+                Ok(n) => {
+                    self.pos += (n * 8) as u64;
+                    Ok(n)
+                }
+                Err(e) => Err(e),
+            },
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Attempted byte-level write when not on byte boundary",
+            )),
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<T, O> BitWrite for BitCursor<BitVec<T, O>>
+where
+    T: BitStore,
+    O: BitOrder,
+    BitSlice<T, O>: BitField,
+{
+    fn write_bits(&mut self, buf: &[ux::u1]) -> std::io::Result<usize> {
+        let n = BitWrite::write_bits(&mut self.remaining_slice_mut(), buf)?;
+        self.pos += n as u64;
+        Ok(n)
+    }
+}
+
+impl<T, O> BitWrite for BitCursor<&mut BitSlice<T, O>>
+where
+    T: BitStore,
+    O: BitOrder,
+    BitSlice<T, O>: BitField,
+{
+    fn write_bits(&mut self, buf: &[ux::u1]) -> std::io::Result<usize> {
+        let n = BitWrite::write_bits(&mut self.inner, buf)?;
+        self.pos += n as u64;
+        Ok(n)
+    }
+}
+
+impl<T> LowerHex for BitCursor<T>
+where
+    T: LowerHex,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "buf: {:x}, pos: {}", self.inner, self.pos)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::io::{Seek, SeekFrom};
 
-    use bitvec::{order::Msb0, vec::BitVec};
+    use bitvec::{
+        order::{Lsb0, Msb0},
+        vec::BitVec,
+    };
     use ux::u1;
+
+    use crate::{
+        bit_read::BitRead,
+        bit_read_exts::BitReadExts,
+        byte_order::{BigEndian, LittleEndian},
+    };
 
     use super::BitCursor;
 
@@ -232,5 +393,19 @@ mod test {
         assert_eq!(buf, [1, 2]);
         std::io::Read::read(&mut cursor, &mut buf).expect("valid read");
         assert_eq!(buf, [3, 4]);
+    }
+
+    #[test]
+    fn test_sub_cursor_vec() {
+        let data = BitVec::<u8, Msb0>::from_vec(vec![1, 2, 3, 4]);
+        let mut cursor = BitCursor::new(data);
+        println!("{cursor:x}");
+
+        let _ = cursor.read_u8().unwrap();
+        let mut sub_cursor = cursor.sub_cursor(0..24);
+        println!("{sub_cursor:x}");
+
+        assert_eq!(sub_cursor.remaining_slice().len(), 24);
+        assert_eq!(sub_cursor.read_u8().unwrap(), 2);
     }
 }
