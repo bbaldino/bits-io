@@ -4,7 +4,7 @@ use std::{
     ops::Range,
 };
 
-use bitvec::{field::BitField, order::BitOrder, slice::BitSlice, store::BitStore, vec::BitVec};
+use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
 
 use crate::{bit_read::BitRead, bit_write::BitWrite};
 
@@ -38,53 +38,56 @@ impl<T> BitCursor<T> {
     }
 }
 
-impl<T, O> BitCursor<BitVec<T, O>>
-where
-    T: BitStore,
-    O: BitOrder,
-{
-    pub fn remaining_slice(&self) -> &BitSlice<T, O> {
+impl BitCursor<BitVec<u8, Msb0>> {
+    /// Create a BitCursor from a [`Vec<u8>`]
+    pub fn from_vec(data: Vec<u8>) -> Self {
+        Self {
+            inner: BitVec::from_vec(data),
+            pos: 0,
+        }
+    }
+
+    /// Get the data between the current cursor position and the end of the data as a [`BitSlice`]
+    pub fn remaining_slice(&self) -> &BitSlice<u8, Msb0> {
         let len = self.pos.min(self.inner.capacity() as u64);
         &self.inner.as_bitslice()[(len as usize)..]
     }
 
-    pub fn remaining_slice_mut(&mut self) -> &mut BitSlice<T, O> {
+    /// Get the data between the current cursor position and the end of the data as a mutable [`BitSlice`]
+    pub fn remaining_slice_mut(&mut self) -> &mut BitSlice<u8, Msb0> {
         let start = self.pos.min(self.inner.capacity() as u64);
         &mut self.inner.as_mut_bitslice()[(start as usize)..]
     }
 
+    // TODO: BitSlice doesn't support ranges on anything that's RangeBounds, it implements the
+    // individual range types.  For now, just support Range here, and in future maybe impl Index
+    // with different range types for this as well.
     /// Grab a sub-cursor representing the given range.  The range is relevant to the _current_
     /// position of the cursor.
-    /// TODO: BitSlice doesn't support ranges on anything that's RangeBounds, it implements the
-    /// individual range types.  For now, just support Range here, and in future maybe impl Index
-    /// with different range types for this as well.
-    /// TODO: i think we're going to need to move this to a trait
-    pub fn sub_cursor(&self, range: Range<usize>) -> BitCursor<&BitSlice<T, O>> {
+    pub fn sub_cursor(&self, range: Range<usize>) -> BitCursor<&BitSlice<u8, Msb0>> {
         let slice = &self.remaining_slice()[range];
         BitCursor::new(slice)
     }
 
+    /// Returns true if the remaining slice is empty
     pub fn is_empty(&self) -> bool {
         self.pos >= self.remaining_slice().len() as u64
     }
 }
 
-impl<T, O> BitCursor<&BitSlice<T, O>>
-where
-    T: BitStore,
-    O: BitOrder,
-{
-    pub fn remaining_slice(&self) -> &BitSlice<T, O> {
+impl BitCursor<&BitSlice<u8, Msb0>> {
+    /// Get the data between the current cursor position and the end of the data as a [`BitSlice`]
+    pub fn remaining_slice(&self) -> &BitSlice<u8, Msb0> {
         let len = self.pos.min(self.inner.len() as u64);
         &self.inner[(len as usize)..]
     }
 
+    // TODO: BitSlice doesn't support ranges on anything that's RangeBounds, it implements the
+    // individual range types.  For now, just support Range here, and in future maybe impl Index
+    // with different range types for this as well.
     /// Grab a sub-cursor representing the given range.  The range is relevant to the _current_
     /// position of the cursor.
-    /// TODO: BitSlice doesn't support ranges on anything that's RangeBounds, it implements the
-    /// individual range types.  For now, just support Range here, and in future maybe impl Index
-    /// with different range types for this as well.
-    pub fn sub_cursor(&self, range: Range<usize>) -> BitCursor<&BitSlice<T, O>> {
+    pub fn sub_cursor(&self, range: Range<usize>) -> BitCursor<&BitSlice<u8, Msb0>> {
         let slice = &self.remaining_slice()[range];
         BitCursor::new(slice)
     }
@@ -106,11 +109,7 @@ where
     }
 }
 
-impl<T, O> Seek for BitCursor<&BitSlice<T, O>>
-where
-    T: BitStore,
-    O: BitOrder,
-{
+impl Seek for BitCursor<&BitSlice<u8, Msb0>> {
     fn seek(&mut self, style: SeekFrom) -> std::io::Result<u64> {
         let (base_pos, offset) = match style {
             SeekFrom::Start(n) => {
@@ -133,11 +132,7 @@ where
     }
 }
 
-impl<T, O> Seek for BitCursor<BitVec<T, O>>
-where
-    T: BitStore,
-    O: BitOrder,
-{
+impl Seek for BitCursor<BitVec<u8, Msb0>> {
     fn seek(&mut self, style: SeekFrom) -> std::io::Result<u64> {
         let (base_pos, offset) = match style {
             SeekFrom::Start(n) => {
@@ -160,12 +155,7 @@ where
     }
 }
 
-impl<T, O> Read for BitCursor<BitVec<T, O>>
-where
-    T: BitStore,
-    O: BitOrder,
-    BitSlice<T, O>: BitField,
-{
+impl Read for BitCursor<BitVec<u8, Msb0>> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         match self.pos % 8 {
             0 => match self.remaining_slice().read(buf) {
@@ -183,12 +173,7 @@ where
     }
 }
 
-impl<T, O> Read for BitCursor<&BitSlice<T, O>>
-where
-    T: BitStore,
-    O: BitOrder,
-    BitSlice<T, O>: BitField,
-{
+impl Read for BitCursor<&BitSlice<u8, Msb0>> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         match self.pos % 8 {
             0 => match self.remaining_slice().read(buf) {
@@ -206,12 +191,7 @@ where
     }
 }
 
-impl<T, O> BitRead for BitCursor<BitVec<T, O>>
-where
-    T: BitStore,
-    O: BitOrder,
-    BitSlice<T, O>: BitField,
-{
+impl BitRead for BitCursor<BitVec<u8, Msb0>> {
     fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
         let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
         self.pos += n as u64;
@@ -219,12 +199,7 @@ where
     }
 }
 
-impl<T, O> BitRead for BitCursor<&BitSlice<T, O>>
-where
-    T: BitStore,
-    O: BitOrder,
-    BitSlice<T, O>: BitField,
-{
+impl BitRead for BitCursor<&BitSlice<u8, Msb0>> {
     fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
         let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
         self.pos += n as u64;
@@ -232,12 +207,7 @@ where
     }
 }
 
-impl<T, O> Write for BitCursor<BitVec<T, O>>
-where
-    T: BitStore,
-    O: BitOrder,
-    BitSlice<T, O>: BitField,
-{
+impl Write for BitCursor<BitVec<u8, Msb0>> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         match self.pos % 8 {
             0 => match self.remaining_slice_mut().write(buf) {
@@ -259,12 +229,7 @@ where
     }
 }
 
-impl<T, O> Write for BitCursor<&mut BitSlice<T, O>>
-where
-    T: BitStore,
-    O: BitOrder,
-    BitSlice<T, O>: BitField,
-{
+impl Write for BitCursor<&mut BitSlice<u8, Msb0>> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         match self.pos % 8 {
             0 => match self.inner.write(buf) {
@@ -286,12 +251,7 @@ where
     }
 }
 
-impl<T, O> BitWrite for BitCursor<BitVec<T, O>>
-where
-    T: BitStore,
-    O: BitOrder,
-    BitSlice<T, O>: BitField,
-{
+impl BitWrite for BitCursor<BitVec<u8, Msb0>> {
     fn write_bits(&mut self, buf: &[ux::u1]) -> std::io::Result<usize> {
         let n = BitWrite::write_bits(&mut self.remaining_slice_mut(), buf)?;
         self.pos += n as u64;
@@ -299,12 +259,7 @@ where
     }
 }
 
-impl<T, O> BitWrite for BitCursor<&mut BitSlice<T, O>>
-where
-    T: BitStore,
-    O: BitOrder,
-    BitSlice<T, O>: BitField,
-{
+impl BitWrite for BitCursor<&mut BitSlice<u8, Msb0>> {
     fn write_bits(&mut self, buf: &[ux::u1]) -> std::io::Result<usize> {
         let n = BitWrite::write_bits(&mut self.inner, buf)?;
         self.pos += n as u64;
@@ -325,17 +280,10 @@ where
 mod test {
     use std::io::{Seek, SeekFrom};
 
-    use bitvec::{
-        order::{Lsb0, Msb0},
-        vec::BitVec,
-    };
+    use bitvec::{order::Msb0, vec::BitVec};
     use ux::u1;
 
-    use crate::{
-        bit_read::BitRead,
-        bit_read_exts::BitReadExts,
-        byte_order::{BigEndian, LittleEndian},
-    };
+    use crate::{bit_read::BitRead, bit_read_exts::BitReadExts};
 
     use super::BitCursor;
 
