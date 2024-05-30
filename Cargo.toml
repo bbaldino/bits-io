@@ -8,6 +8,6 @@ edition = "2021"
 [dependencies]
 thiserror = "1.0.58"
 paste = "1"
-ux = { path = "../uX", features = ["num-traits"] }
+ux = { version = "0.1.6", git = "https://github.com/bbaldino/uX.git", branch = "num_traits", features = ["num-traits"] }
 num-traits = "0.2"
 bitvec = "1.0.1"
