@@ -4,7 +4,7 @@ use std::{
     ops::Range,
 };
 
-use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec};
+use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec, view::BitView};
 
 use crate::{bit_read::BitRead, bit_write::BitWrite};
 
@@ -97,6 +97,13 @@ impl BitCursor<&BitSlice<u8, Msb0>> {
     }
 }
 
+impl BitCursor<&[u8]> {
+    pub fn remaining_slice(&self) -> &BitSlice<u8, Msb0> {
+        let len = self.pos.min(self.inner.len() as u64);
+        &self.inner.view_bits()[(len as usize)..]
+    }
+}
+
 impl<T> Clone for BitCursor<T>
 where
     T: Clone,
@@ -155,38 +162,79 @@ impl Seek for BitCursor<BitVec<u8, Msb0>> {
     }
 }
 
+impl Seek for BitCursor<&[u8]> {
+    fn seek(&mut self, style: SeekFrom) -> std::io::Result<u64> {
+        let (base_pos, offset) = match style {
+            SeekFrom::Start(n) => {
+                self.pos = n;
+                return Ok(self.pos);
+            }
+            SeekFrom::End(n) => (self.inner.len() as u64, n),
+            SeekFrom::Current(n) => (self.pos, n),
+        };
+        match base_pos.checked_add_signed(offset) {
+            Some(n) => {
+                self.pos = n;
+                Ok(self.pos)
+            }
+            None => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "invalid seek to a negative or overflowing position",
+            )),
+        }
+    }
+}
+
 impl Read for BitCursor<BitVec<u8, Msb0>> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        match self.pos % 8 {
-            0 => match self.remaining_slice().read(buf) {
-                Ok(n) => {
-                    self.pos += (n * 8) as u64;
-                    Ok(n)
-                }
-                Err(e) => Err(e),
-            },
-            _ => Err(std::io::Error::new(
+        if self.pos % 8 != 0 {
+            return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "Attempted byte-level read when not on byte boundary",
-            )),
+            ));
+        }
+        match self.remaining_slice().read(buf) {
+            Ok(n) => {
+                self.pos += (n * 8) as u64;
+                Ok(n)
+            }
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl Read for BitCursor<&[u8]> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.pos % 8 != 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Attempted byte-level read when not on byte boundary",
+            ));
+        }
+        match self.inner.read(buf) {
+            Ok(n) => {
+                self.pos += (n * 8) as u64;
+                Ok(n)
+            }
+            Err(e) => Err(e),
         }
     }
 }
 
 impl Read for BitCursor<&BitSlice<u8, Msb0>> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        match self.pos % 8 {
-            0 => match self.remaining_slice().read(buf) {
-                Ok(n) => {
-                    self.pos += (n * 8) as u64;
-                    Ok(n)
-                }
-                Err(e) => Err(e),
-            },
-            _ => Err(std::io::Error::new(
+        if self.pos % 8 != 0 {
+            return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "Attempted byte-level read when not on byte boundary",
-            )),
+            ));
+        }
+        match self.remaining_slice().read(buf) {
+            Ok(n) => {
+                self.pos += (n * 8) as u64;
+                Ok(n)
+            }
+            Err(e) => Err(e),
         }
     }
 }
@@ -207,20 +255,28 @@ impl BitRead for BitCursor<&BitSlice<u8, Msb0>> {
     }
 }
 
+impl BitRead for BitCursor<&[u8]> {
+    fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
+        let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
+        self.pos += n as u64;
+        Ok(n)
+    }
+}
+
 impl Write for BitCursor<BitVec<u8, Msb0>> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        match self.pos % 8 {
-            0 => match self.remaining_slice_mut().write(buf) {
-                Ok(n) => {
-                    self.pos += (n * 8) as u64;
-                    Ok(n)
-                }
-                Err(e) => Err(e),
-            },
-            _ => Err(std::io::Error::new(
+        if self.pos % 8 != 0 {
+            return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "Attempted byte-level write when not on byte boundary",
-            )),
+            ));
+        }
+        match self.remaining_slice_mut().write(buf) {
+            Ok(n) => {
+                self.pos += (n * 8) as u64;
+                Ok(n)
+            }
+            Err(e) => Err(e),
         }
     }
 
@@ -231,18 +287,18 @@ impl Write for BitCursor<BitVec<u8, Msb0>> {
 
 impl Write for BitCursor<&mut BitSlice<u8, Msb0>> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        match self.pos % 8 {
-            0 => match self.inner.write(buf) {
-                Ok(n) => {
-                    self.pos += (n * 8) as u64;
-                    Ok(n)
-                }
-                Err(e) => Err(e),
-            },
-            _ => Err(std::io::Error::new(
+        if self.pos % 8 != 0 {
+            return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "Attempted byte-level write when not on byte boundary",
-            )),
+            ));
+        }
+        match self.inner.write(buf) {
+            Ok(n) => {
+                self.pos += (n * 8) as u64;
+                Ok(n)
+            }
+            Err(e) => Err(e),
         }
     }
 
