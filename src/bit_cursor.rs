@@ -99,8 +99,9 @@ impl BitCursor<&BitSlice<u8, Msb0>> {
 
 impl BitCursor<&[u8]> {
     pub fn remaining_slice(&self) -> &BitSlice<u8, Msb0> {
-        let len = self.pos.min(self.inner.len() as u64);
-        &self.inner.view_bits()[(len as usize)..]
+        // Here we have to mulitply the slice length by 8, since it's in bytes
+        let len = self.pos.min((self.inner.len() * 8) as u64);
+        &self.inner.view_bits::<Msb0>()[(len as usize)..]
     }
 }
 
@@ -211,7 +212,7 @@ impl Read for BitCursor<&[u8]> {
                 "Attempted byte-level read when not on byte boundary",
             ));
         }
-        match self.inner.read(buf) {
+        match self.remaining_slice().read(buf) {
             Ok(n) => {
                 self.pos += (n * 8) as u64;
                 Ok(n)
@@ -336,7 +337,7 @@ where
 mod test {
     use std::io::{Seek, SeekFrom};
 
-    use bitvec::{order::Msb0, vec::BitVec};
+    use bitvec::{bits, order::Msb0, vec::BitVec};
     use ux::u1;
 
     use crate::{bit_read::BitRead, bit_read_exts::BitReadExts};
@@ -403,13 +404,22 @@ mod test {
     fn test_sub_cursor_vec() {
         let data = BitVec::<u8, Msb0>::from_vec(vec![1, 2, 3, 4]);
         let mut cursor = BitCursor::new(data);
-        println!("{cursor:x}");
 
         let _ = cursor.read_u8().unwrap();
         let mut sub_cursor = cursor.sub_cursor(0..24);
-        println!("{sub_cursor:x}");
 
         assert_eq!(sub_cursor.remaining_slice().len(), 24);
         assert_eq!(sub_cursor.read_u8().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_remaining_slice_u8() {
+        let data: Vec<u8> = vec![0b00001111, 0b10101010];
+
+        let mut cursor = BitCursor::new(&data[..]);
+        cursor.read_u4().unwrap();
+
+        let slice = cursor.remaining_slice();
+        assert_eq!(slice, bits![u8, Msb0; 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0]);
     }
 }
