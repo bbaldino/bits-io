@@ -1,8 +1,8 @@
 use std::ops::{BitAnd, ShrAssign};
 
 use crate::{bit_write::BitWrite, byte_order::ByteOrder};
+use nsw_types::*;
 use num_traits::{ConstOne, ConstZero};
-use ux::*;
 
 fn bit_write_exts_helper<T, const N: usize, U>(buf: &mut U, mut value: T) -> std::io::Result<()>
 where

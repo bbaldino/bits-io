@@ -1,7 +1,7 @@
 use std::ops::{BitOrAssign, ShlAssign};
 
+use nsw_types::*;
 use num_traits::ConstZero;
-use ux::*;
 
 use crate::{bit_read::BitRead, byte_order::ByteOrder};
 
@@ -13,7 +13,7 @@ fn bit_read_exts_helper<
     buf: &mut U,
 ) -> std::io::Result<T> {
     // TODO: it'd be nice not to do this bit-by-bit.  I think once we get the from_xxx_bytes methods
-    // in ux those could work here.
+    // in nsw_types those could work here.
     let mut read_buf = [u1::ZERO; N];
     buf.read_bits_exact(&mut read_buf)?;
     let mut val = T::ZERO;

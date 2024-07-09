@@ -1,4 +1,4 @@
-use ux::u1;
+use nsw_types::u1;
 
 pub trait BitWrite: std::io::Write {
     /// Write a buffer into this writer, returning how many bytes were written.

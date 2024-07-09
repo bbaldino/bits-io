@@ -1,4 +1,4 @@
-use ux::u1;
+use nsw_types::u1;
 
 pub trait BitRead: std::io::Read {
     /// Pull some bits from this source into the specified buffer, returning how many bytes were read.

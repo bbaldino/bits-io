@@ -241,7 +241,7 @@ impl Read for BitCursor<&BitSlice<u8, Msb0>> {
 }
 
 impl BitRead for BitCursor<BitVec<u8, Msb0>> {
-    fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
+    fn read_bits(&mut self, buf: &mut [nsw_types::u1]) -> std::io::Result<usize> {
         let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
         self.pos += n as u64;
         Ok(n)
@@ -249,7 +249,7 @@ impl BitRead for BitCursor<BitVec<u8, Msb0>> {
 }
 
 impl BitRead for BitCursor<&BitSlice<u8, Msb0>> {
-    fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
+    fn read_bits(&mut self, buf: &mut [nsw_types::u1]) -> std::io::Result<usize> {
         let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
         self.pos += n as u64;
         Ok(n)
@@ -257,7 +257,7 @@ impl BitRead for BitCursor<&BitSlice<u8, Msb0>> {
 }
 
 impl BitRead for BitCursor<&[u8]> {
-    fn read_bits(&mut self, buf: &mut [ux::u1]) -> std::io::Result<usize> {
+    fn read_bits(&mut self, buf: &mut [nsw_types::u1]) -> std::io::Result<usize> {
         let n = BitRead::read_bits(&mut self.remaining_slice(), buf)?;
         self.pos += n as u64;
         Ok(n)
@@ -309,7 +309,7 @@ impl Write for BitCursor<&mut BitSlice<u8, Msb0>> {
 }
 
 impl BitWrite for BitCursor<BitVec<u8, Msb0>> {
-    fn write_bits(&mut self, buf: &[ux::u1]) -> std::io::Result<usize> {
+    fn write_bits(&mut self, buf: &[nsw_types::u1]) -> std::io::Result<usize> {
         let n = BitWrite::write_bits(&mut self.remaining_slice_mut(), buf)?;
         self.pos += n as u64;
         Ok(n)
@@ -317,7 +317,7 @@ impl BitWrite for BitCursor<BitVec<u8, Msb0>> {
 }
 
 impl BitWrite for BitCursor<&mut BitSlice<u8, Msb0>> {
-    fn write_bits(&mut self, buf: &[ux::u1]) -> std::io::Result<usize> {
+    fn write_bits(&mut self, buf: &[nsw_types::u1]) -> std::io::Result<usize> {
         let n = BitWrite::write_bits(&mut self.inner, buf)?;
         self.pos += n as u64;
         Ok(n)
@@ -338,7 +338,7 @@ mod test {
     use std::io::{Seek, SeekFrom};
 
     use bitvec::{bits, order::Msb0, vec::BitVec};
-    use ux::u1;
+    use nsw_types::u1;
 
     use crate::{bit_read::BitRead, bit_read_exts::BitReadExts};
 

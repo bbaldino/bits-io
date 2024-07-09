@@ -1,9 +1,9 @@
+use nsw_types::*;
 use paste::paste;
-use ux::*;
 
 const U1_ONE: u1 = u1::new(1);
 
-// Helper macro to provide consistent syntax for initializing both uX and standard integer types
+// Helper macro to provide consistent syntax for initializing both nsw_types and standard integer types
 // TODO: better to just define a trait that implements ONE and ZERO for all types?
 macro_rules! init_integer {
     (u16, $value:expr) => {
@@ -17,36 +17,36 @@ macro_rules! init_integer {
     };
 }
 
-/// Generate a LittleEndian read operation from a buffer for the uX types
+/// Generate a LittleEndian read operation from a buffer for the nsw_types types
 macro_rules! impl_read_le {
     ($type:ty, $size_bits:expr) => {
         paste! {
             fn [<read_ $type>](buf: &[u1; $size_bits]) -> $type {
                 let mut val = <$type>::default();
                 if $size_bits > 32 {
-                    unimplemented!("Only uX types up to 32 bits supported");
+                    unimplemented!("Only nsw_types types up to 32 bits supported");
                 }
                 if $size_bits > 24 {
                     for i in 24..std::cmp::min($size_bits, 32) {
                         val <<= 1;
-                        val |= <ux::u1 as Into<$type>>::into(buf[i]);
+                        val |= <nsw_types::u1 as Into<$type>>::into(buf[i]);
                     }
                 }
                 if $size_bits > 16 {
                     for i in 16..std::cmp::min($size_bits, 24) {
                         val <<= 1;
-                        val |= <ux::u1 as Into<$type>>::into(buf[i]);
+                        val |= <nsw_types::u1 as Into<$type>>::into(buf[i]);
                     }
                 }
                 if $size_bits > 8 {
                     for i in 8..std::cmp::min($size_bits, 16) {
                         val <<= 1;
-                        val |= <ux::u1 as Into<$type>>::into(buf[i]);
+                        val |= <nsw_types::u1 as Into<$type>>::into(buf[i]);
                     }
                 }
                 for i in 0..std::cmp::min($size_bits, 8) {
                     val <<= 1;
-                    val |= <ux::u1 as Into<$type>>::into(buf[i]);
+                    val |= <nsw_types::u1 as Into<$type>>::into(buf[i]);
                 }
                 val
             }
@@ -61,7 +61,7 @@ macro_rules! impl_read_be {
                 let mut val = <$type>::default();
                 for bit in buf.iter() {
                     val <<= 1;
-                    val |= <ux::u1 as Into<$type>>::into(*bit);
+                    val |= <nsw_types::u1 as Into<$type>>::into(*bit);
                 }
                 val
             }

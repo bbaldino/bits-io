@@ -1,5 +1,5 @@
 use bitvec::{order::Msb0, slice::BitSlice};
-use ux::u1;
+use nsw_types::u1;
 
 use crate::{bit_read::BitRead, bit_write::BitWrite};
 

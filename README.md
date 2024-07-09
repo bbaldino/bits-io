@@ -1,7 +1,7 @@
 # BitCursor
 
 BitCursor is similar to std::io::Cursor, but allows reading various amounts of bits from a given buffer in addition
-to byte-sized chunks.  It's built on top of the [ux](https://crates.io/crates/ux) crate for types and leverages 
+to byte-sized chunks.  It's built on top of the [nsw_types](https://crates.io/crates/nsw-types) crate for types and leverages 
 [bitvec](https://docs.rs/bitvec/latest/bitvec/) to provide a more complete implementation.
 
 # Examples
@@ -12,12 +12,12 @@ let mut cursor = BitCursor::from_vec(data);
 
 // Read any non-standard-width type from the cursor
 let u3_val = cursor.read_u3().unwrap();
-assert_eq!(u3_val, ux::u3::new(0b111));
+assert_eq!(u3_val, nsw_types::u3::new(0b111));
 // Sizes larger than 8 bits require a byte order argument
 let u13_val = cursor
     .read_u13::<crate::byte_order::NetworkOrder>()
     .unwrap();
-assert_eq!(u13_val, ux::u13::new(0b0000011101111));
+assert_eq!(u13_val, nsw_types::u13::new(0b0000011101111));
 ```
 
 # Design
@@ -35,4 +35,4 @@ assert_eq!(u13_val, ux::u13::new(0b0000011101111));
 ## Types
 
 ### `BitCursor`
-`BitCursor` is analgous to the [`std::io::Cursor`](https://doc.rust-lang.org/std/io/struct.Cursor.html) type, but its API is defined in terms of bits instead of bytes.
+`BitCursor` is analogous to the [`std::io::Cursor`](https://doc.rust-lang.org/std/io/struct.Cursor.html) type, but its API is defined in terms of bits instead of bytes.

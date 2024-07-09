@@ -7,6 +7,6 @@ edition = "2021"
 
 [dependencies]
 paste = "1"
-ux = { version = "0.1.6", git = "https://github.com/bbaldino/uX.git", branch = "master", features = ["num-traits"] }
+nsw-types = { version = "0.1.7", features = ["num-traits", "std"] }
 num-traits = "0.2"
 bitvec = "1.0.1"

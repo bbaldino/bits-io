@@ -6,4 +6,4 @@ pub mod bit_write;
 pub mod bit_write_exts;
 pub mod byte_order;
 
-pub use ux;
+pub use nsw_types;
