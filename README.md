@@ -1,7 +1,8 @@
 # BitCursor
 
-BitCursor is similar to std::io::Cursor, but allows reading various amounts of bits from a given buffer in addition
-to byte-sized chunks.  It's built on top of the [nsw_types](https://crates.io/crates/nsw-types) crate for types and leverages 
+BitCursor is similar to std::io::Cursor, but allows reading various amounts of bits from a given 
+buffer in addition to byte-sized chunks.  It's built on top of the 
+[nsw_types](https://crates.io/crates/nsw-types) crate for non-standard-width types and leverages 
 [bitvec](https://docs.rs/bitvec/latest/bitvec/) to provide a more complete implementation.
 
 # Examples
