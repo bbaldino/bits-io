@@ -1,5 +1,5 @@
 [package]
-name = "bitcursor"
+name = "bit-cursor"
 version = "0.1.1"
 edition = "2021"
 description = "A cursor that supports bit-level reads and writes"
