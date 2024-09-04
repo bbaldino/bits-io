@@ -1,7 +1,6 @@
 use std::ops::{BitOrAssign, ShlAssign};
 
-use nsw_types::*;
-use num_traits::ConstZero;
+use nsw_types::{num_traits::ConstZero, *};
 
 use crate::{bit_read::BitRead, byte_order::ByteOrder};
 
