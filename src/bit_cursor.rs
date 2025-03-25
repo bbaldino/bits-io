@@ -1,7 +1,6 @@
 use std::{
     fmt::LowerHex,
     io::{Read, Seek, SeekFrom, Write},
-    ops::Range,
 };
 
 use bitvec::{order::Msb0, slice::BitSlice, vec::BitVec, view::BitView};
@@ -59,16 +58,6 @@ impl BitCursor<BitVec<u8, Msb0>> {
         &mut self.inner.as_mut_bitslice()[(start as usize)..]
     }
 
-    // TODO: BitSlice doesn't support ranges on anything that's RangeBounds, it implements the
-    // individual range types.  For now, just support Range here, and in future maybe impl Index
-    // with different range types for this as well.
-    /// Grab a sub-cursor representing the given range.  The range is relevant to the _current_
-    /// position of the cursor.
-    pub fn sub_cursor(&self, range: Range<usize>) -> BitCursor<&BitSlice<u8, Msb0>> {
-        let slice = &self.remaining_slice()[range];
-        BitCursor::new(slice)
-    }
-
     /// Returns true if the remaining slice is empty
     pub fn is_empty(&self) -> bool {
         self.pos >= self.remaining_slice().len() as u64
@@ -80,16 +69,6 @@ impl BitCursor<&BitSlice<u8, Msb0>> {
     pub fn remaining_slice(&self) -> &BitSlice<u8, Msb0> {
         let len = self.pos.min(self.inner.len() as u64);
         &self.inner[(len as usize)..]
-    }
-
-    // TODO: BitSlice doesn't support ranges on anything that's RangeBounds, it implements the
-    // individual range types.  For now, just support Range here, and in future maybe impl Index
-    // with different range types for this as well.
-    /// Grab a sub-cursor representing the given range.  The range is relevant to the _current_
-    /// position of the cursor.
-    pub fn sub_cursor(&self, range: Range<usize>) -> BitCursor<&BitSlice<u8, Msb0>> {
-        let slice = &self.remaining_slice()[range];
-        BitCursor::new(slice)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -340,7 +319,7 @@ mod test {
     use bitvec::{bits, order::Msb0, vec::BitVec};
     use nsw_types::u1;
 
-    use crate::{bit_read::BitRead, bit_read_exts::BitReadExts};
+    use crate::{bit_read::BitRead, bit_read_exts::BitReadExts, sub_cursor::SubCursor};
 
     use super::BitCursor;
 
