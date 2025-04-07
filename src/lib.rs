@@ -5,6 +5,5 @@ pub mod bit_slice_traits;
 pub mod bit_write;
 pub mod bit_write_exts;
 pub mod byte_order;
-pub mod sub_cursor;
 
 pub use nsw_types;

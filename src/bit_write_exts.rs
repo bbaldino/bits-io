@@ -203,4 +203,4 @@ pub trait BitWriteExts: BitWrite {
     }
 }
 
-impl<T> BitWriteExts for T where T: BitWrite {}
+impl<T> BitWriteExts for T where T: BitWrite + ?Sized {}
