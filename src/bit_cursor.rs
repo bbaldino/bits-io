@@ -203,18 +203,19 @@ where
 
 #[cfg(test)]
 mod test {
-    use std::io::{Seek, SeekFrom, Write};
+    use std::fmt::Debug;
+    use std::io::{Seek, SeekFrom};
 
     use bitvec::slice::BitSlice;
     use bitvec::view::BitView;
-    use bitvec::{bits, order::Msb0, vec::BitVec};
+    use bitvec::{order::Msb0, vec::BitVec};
     use nsw_types::*;
 
+    use crate::bit_read::BitRead;
     use crate::bit_seek::BitSeek;
     use crate::bit_write_exts::BitWriteExts;
     use crate::borrow_bits::{BorrowBits, BorrowBitsMut};
     use crate::byte_order::NetworkOrder;
-    use crate::{bit_read::BitRead, bit_read_exts::BitReadExts};
 
     use super::BitCursor;
 
@@ -304,7 +305,7 @@ mod test {
         assert_eq!(read_buf, [u1::new(0), u1::new(0)]);
     }
 
-    fn test_write_bits<T: BorrowBitsMut>(buf: T) -> T {
+    fn test_write_bits_helper<T: BorrowBitsMut>(buf: T) -> T {
         let mut cursor = BitCursor::new(buf);
         cursor.write_u4(u4::new(0b1100)).unwrap();
         cursor.write_u2(u2::new(0b11)).unwrap();
@@ -319,7 +320,7 @@ mod test {
         let buf = BitVec::<u8, Msb0>::from_vec(vec![0; 2]);
 
         assert_eq!(
-            test_write_bits(buf),
+            test_write_bits_helper(buf),
             BitVec::<u8, Msb0>::from_vec(vec![0b11001100, 0b11001100])
         );
     }
@@ -328,7 +329,7 @@ mod test {
     fn test_write_bits_vec() {
         let buf: Vec<u8> = vec![0, 0];
 
-        assert_eq!(test_write_bits(buf), [0b11001100, 0b11001100]);
+        assert_eq!(test_write_bits_helper(buf), [0b11001100, 0b11001100]);
     }
 
     #[test]
@@ -337,7 +338,7 @@ mod test {
         let buf: &mut BitSlice<u8, Msb0> = data.view_bits_mut::<Msb0>();
 
         assert_eq!(
-            test_write_bits(buf),
+            test_write_bits_helper(buf),
             BitVec::<u8, Msb0>::from_vec(vec![0b11001100, 0b11001100]).as_bitslice()
         );
     }
@@ -346,7 +347,10 @@ mod test {
     fn test_write_bits_u8_slice() {
         let mut buf = [0u8; 2];
 
-        assert_eq!(test_write_bits(&mut buf[..]), [0b11001100, 0b11001100]);
+        assert_eq!(
+            test_write_bits_helper(&mut buf[..]),
+            [0b11001100, 0b11001100]
+        );
     }
 
     fn test_split_helper<T: BorrowBits>(buf: T, expected: &[u8]) {
@@ -411,31 +415,15 @@ mod test {
         test_read_bits_hepler(right, &data[1..]);
     }
 
-    #[test]
-    fn test_split_old() {
-        let data: Vec<u8> = vec![0b11110011, 0b10101010];
-
-        let mut cursor = BitCursor::new(data);
-        cursor.bit_seek(SeekFrom::Current(4)).unwrap();
-        let (before, after) = cursor.split();
-
-        assert_eq!(before, bits!(u8, Msb0; 1, 1, 1, 1));
-        assert_eq!(after, bits!(u8, Msb0; 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0));
-
-        let mut before_cursor = BitCursor::new(before);
-        assert_eq!(before_cursor.read_u4().unwrap(), u4::new(0b1111));
-        let mut after_cursor = BitCursor::new(after);
-        assert_eq!(after_cursor.read_u4().unwrap(), u4::new(0b0011));
-        assert_eq!(after_cursor.read_u8().unwrap(), 0b10101010u8);
-    }
-
-    #[test]
-    fn test_split_mut() {
-        let mut bytes = Vec::with_capacity(4);
-        bytes.write_all(&[0, 0, 0, 0]).unwrap();
-        let mut cursor = BitCursor::new(bytes);
-        cursor.bit_seek(SeekFrom::Start(16)).unwrap();
-
+    // Assumes the given buf is 4 bytes long
+    fn test_split_mut_helper<T, U, F>(buf: T, create_expected: F)
+    where
+        T: BorrowBitsMut + PartialEq<U> + Debug,
+        U: Debug,
+        F: FnOnce(&[u8]) -> U,
+    {
+        let mut cursor = BitCursor::new(buf);
+        cursor.seek(SeekFrom::Start(2)).unwrap();
         {
             let (mut before, mut after) = cursor.split_mut();
 
@@ -446,7 +434,26 @@ mod test {
         }
 
         let data = cursor.into_inner();
+        let expected = create_expected(&[0b11111111, 0b00000000, 0b11001100, 0b00110011]);
+        assert_eq!(data, expected);
+    }
 
-        assert_eq!(vec![0b11111111, 0b00000000, 0b11001100, 0b00110011], data);
+    #[test]
+    fn test_split_mut() {
+        let data = [0u8; 4];
+
+        let vec = Vec::from(data);
+        test_split_mut_helper(vec, |v| v.to_vec());
+
+        let bitvec = BitVec::<u8, Msb0>::from_vec(vec![0u8; 4]);
+        test_split_mut_helper(bitvec, |v| BitVec::<u8, Msb0>::from_vec(v.to_vec()));
+
+        let mut data = [0u8; 4];
+        let bitslice: &mut BitSlice<u8, Msb0> = data.view_bits_mut();
+        test_split_mut_helper(bitslice, |v| BitVec::<u8, Msb0>::from_vec(v.to_vec()));
+
+        let mut data = [0u8; 4];
+        let u8_slice = &mut data[..];
+        test_split_mut_helper(u8_slice, |v| v.to_vec());
     }
 }
