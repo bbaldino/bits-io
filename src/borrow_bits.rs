@@ -28,7 +28,19 @@ impl BorrowBits for &BitSlice<u8, Msb0> {
     }
 }
 
-pub trait BorrowBitsMut {
+impl BorrowBits for &mut [u8] {
+    fn borrow_bits(&self) -> &BitSlice<u8, Msb0> {
+        self.view_bits::<Msb0>()
+    }
+}
+
+impl BorrowBits for &mut BitSlice<u8, Msb0> {
+    fn borrow_bits(&self) -> &BitSlice<u8, Msb0> {
+        self
+    }
+}
+
+pub trait BorrowBitsMut: BorrowBits {
     fn borrow_bits_mut(&mut self) -> &mut BitSlice<u8, Msb0>;
 }
 
