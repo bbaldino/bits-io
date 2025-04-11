@@ -56,12 +56,13 @@ impl ByteOrder for LittleEndian {
 
 #[cfg(test)]
 mod tests {
+    use crate::{bit_read_exts::BitReadExts, bit_write_exts::BitWriteExts};
+
     use super::*;
     // use bitvec::prelude::*;
-
     #[test]
     fn test_big_endian_read_write() {
-        let cases = [
+        let test_cases = [
             (0b1, 1),
             (0b10, 2),
             (0b10101010, 8),
@@ -69,19 +70,34 @@ mod tests {
             (0xDEADBEEF, 32),
         ];
 
-        for &(value, n) in &cases {
-            let mut tmp = BitVec::repeat(false, n);
-            BigEndian::write_u32_to_bits(tmp.as_mut_bitslice(), value);
+        for &(value, bits) in &test_cases {
+            let mut cursor = BitCursor::new(vec![0u8; 8]);
 
-            let read_back = BigEndian::read_u32_from_bits(tmp.as_bitslice());
+            if bits <= 8 {
+                cursor.write_u8(value as u8).unwrap();
+            } else if bits <= 16 {
+                cursor.write_u16::<BigEndian>(value as u16).unwrap();
+            } else {
+                cursor.write_u32::<BigEndian>(value as u32).unwrap();
+            }
 
-            assert_eq!(read_back, value, "BigEndian failed for {} bits", n);
+            cursor.set_position(0);
+
+            let read_value = if bits <= 8 {
+                cursor.read_u8().unwrap() as u64
+            } else if bits <= 16 {
+                cursor.read_u16::<BigEndian>().unwrap() as u64
+            } else {
+                cursor.read_u32::<BigEndian>().unwrap() as u64
+            };
+
+            assert_eq!(value, read_value, "BigEndian failed for {} bits", bits);
         }
     }
 
     #[test]
     fn test_little_endian_read_write() {
-        let cases = [
+        let test_cases = [
             (0b1, 1),
             (0b10, 2),
             (0b10101010, 8),
@@ -89,13 +105,28 @@ mod tests {
             (0xDEADBEEF, 32),
         ];
 
-        for &(value, n) in &cases {
-            let mut tmp = BitVec::repeat(false, n);
-            LittleEndian::write_u32_to_bits(tmp.as_mut_bitslice(), value);
+        for &(value, bits) in &test_cases {
+            let mut cursor = BitCursor::new(vec![0u8; 8]);
 
-            let read_back = LittleEndian::read_u32_from_bits(tmp.as_bitslice());
+            if bits <= 8 {
+                cursor.write_u8(value as u8).unwrap();
+            } else if bits <= 16 {
+                cursor.write_u16::<LittleEndian>(value as u16).unwrap();
+            } else {
+                cursor.write_u32::<LittleEndian>(value as u32).unwrap();
+            }
 
-            assert_eq!(read_back, value, "LittleEndian failed for {} bits", n);
+            cursor.set_position(0);
+
+            let read_value = if bits <= 8 {
+                cursor.read_u8().unwrap() as u64
+            } else if bits <= 16 {
+                cursor.read_u16::<LittleEndian>().unwrap() as u64
+            } else {
+                cursor.read_u32::<LittleEndian>().unwrap() as u64
+            };
+
+            assert_eq!(value, read_value, "LittleEndian failed for {} bits", bits);
         }
     }
 }
