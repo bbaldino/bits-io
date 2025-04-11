@@ -1,224 +1,147 @@
-use std::ops::{BitOrAssign, ShlAssign};
+use crate::byte_order::{BigEndian, ByteOrder};
+use crate::prelude::*;
+use nsw_types::*;
 
-use nsw_types::{num_traits::ConstZero, *};
-
-use crate::{bit_read::BitRead, byte_order::ByteOrder};
-
-fn bit_read_exts_helper<
-    T: ConstZero + ShlAssign<u32> + BitOrAssign + From<u1>,
-    const N: usize,
-    U: BitRead + ?Sized,
->(
-    buf: &mut U,
-) -> std::io::Result<T> {
-    // TODO: it'd be nice not to do this bit-by-bit.  I think once we get the from_xxx_bytes methods
-    // in nsw_types those could work here.
-    let mut read_buf = [u1::ZERO; N];
-    buf.read_bits_exact(&mut read_buf)?;
-    let mut val = T::ZERO;
-    for bit in read_buf.iter() {
-        val <<= 1;
-        val |= (*bit).into();
-    }
-    Ok(val)
+#[allow(non_snake_case)]
+fn read_uN<R: BitRead + ?Sized, B: ByteOrder>(reader: &mut R, n: usize) -> std::io::Result<u32> {
+    let mut tmp = BitVec::repeat(false, n);
+    reader.read_bits_exact(tmp.as_mut_bitslice())?;
+    Ok(B::read_u32_from_bits(tmp.as_bitslice()))
 }
 
+/// A trait which extends BitRead to add explicit read methods for non-standard-width types
 pub trait BitReadExts: BitRead {
     fn read_bool(&mut self) -> std::io::Result<bool> {
-        self.read_u1().map(|v| v.into())
+        Ok(self.read_u1()? != 0)
     }
 
     fn read_u1(&mut self) -> std::io::Result<u1> {
-        bit_read_exts_helper::<u1, 1, Self>(self)
+        read_uN::<_, BigEndian>(self, 1).map(|v| u1::new(v as u8))
     }
 
     fn read_u2(&mut self) -> std::io::Result<u2> {
-        bit_read_exts_helper::<u2, 2, Self>(self)
+        read_uN::<_, BigEndian>(self, 2).map(|v| u2::new(v as u8))
     }
 
     fn read_u3(&mut self) -> std::io::Result<u3> {
-        bit_read_exts_helper::<u3, 3, Self>(self)
+        read_uN::<_, BigEndian>(self, 3).map(|v| u3::new(v as u8))
     }
 
     fn read_u4(&mut self) -> std::io::Result<u4> {
-        bit_read_exts_helper::<u4, 4, Self>(self)
+        read_uN::<_, BigEndian>(self, 4).map(|v| u4::new(v as u8))
     }
 
     fn read_u5(&mut self) -> std::io::Result<u5> {
-        bit_read_exts_helper::<u5, 5, Self>(self)
+        read_uN::<_, BigEndian>(self, 5).map(|v| u5::new(v as u8))
     }
 
     fn read_u6(&mut self) -> std::io::Result<u6> {
-        bit_read_exts_helper::<u6, 6, Self>(self)
+        read_uN::<_, BigEndian>(self, 6).map(|v| u6::new(v as u8))
     }
 
     fn read_u7(&mut self) -> std::io::Result<u7> {
-        bit_read_exts_helper::<u7, 7, Self>(self)
+        read_uN::<_, BigEndian>(self, 7).map(|v| u7::new(v as u8))
     }
 
     fn read_u8(&mut self) -> std::io::Result<u8> {
-        bit_read_exts_helper::<u8, 8, Self>(self)
+        read_uN::<_, BigEndian>(self, 8).map(|v| v as u8)
     }
 
-    fn read_u9<T: ByteOrder>(&mut self) -> std::io::Result<u9> {
-        let mut buf = [u1::new(0); 9];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u9(&buf))
+    fn read_u9<B: ByteOrder>(&mut self) -> std::io::Result<u9> {
+        read_uN::<_, B>(self, 9).map(|v| u9::new(v as u16))
     }
 
-    fn read_u10<T: ByteOrder>(&mut self) -> std::io::Result<u10> {
-        let mut buf = [u1::new(0); 10];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u10(&buf))
+    fn read_u10<B: ByteOrder>(&mut self) -> std::io::Result<u10> {
+        read_uN::<_, B>(self, 10).map(|v| u10::new(v as u16))
     }
 
-    fn read_u11<T: ByteOrder>(&mut self) -> std::io::Result<u11> {
-        let mut buf = [u1::new(0); 11];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u11(&buf))
+    fn read_u11<B: ByteOrder>(&mut self) -> std::io::Result<u11> {
+        read_uN::<_, B>(self, 11).map(|v| u11::new(v as u16))
     }
 
-    fn read_u12<T: ByteOrder>(&mut self) -> std::io::Result<u12> {
-        let mut buf = [u1::new(0); 12];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u12(&buf))
+    fn read_u12<B: ByteOrder>(&mut self) -> std::io::Result<u12> {
+        read_uN::<_, B>(self, 12).map(|v| u12::new(v as u16))
     }
 
-    fn read_u13<T: ByteOrder>(&mut self) -> std::io::Result<u13> {
-        let mut buf = [u1::new(0); 13];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u13(&buf))
+    fn read_u13<B: ByteOrder>(&mut self) -> std::io::Result<u13> {
+        read_uN::<_, B>(self, 13).map(|v| u13::new(v as u16))
     }
 
-    fn read_u14<T: ByteOrder>(&mut self) -> std::io::Result<u14> {
-        let mut buf = [u1::new(0); 14];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u14(&buf))
+    fn read_u14<B: ByteOrder>(&mut self) -> std::io::Result<u14> {
+        read_uN::<_, B>(self, 14).map(|v| u14::new(v as u16))
     }
 
-    fn read_u15<T: ByteOrder>(&mut self) -> std::io::Result<u15> {
-        let mut buf = [u1::new(0); 15];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u15(&buf))
+    fn read_u15<B: ByteOrder>(&mut self) -> std::io::Result<u15> {
+        read_uN::<_, B>(self, 15).map(|v| u15::new(v as u16))
     }
 
-    fn read_u16<T: ByteOrder>(&mut self) -> std::io::Result<u16> {
-        let mut buf = [u1::new(0); 16];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u16(&buf))
+    fn read_u16<B: ByteOrder>(&mut self) -> std::io::Result<u16> {
+        read_uN::<_, B>(self, 16).map(|v| v as u16)
     }
 
-    fn read_u17<T: ByteOrder>(&mut self) -> std::io::Result<u17> {
-        let mut buf = [u1::new(0); 17];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u17(&buf))
+    fn read_u17<B: ByteOrder>(&mut self) -> std::io::Result<u17> {
+        read_uN::<_, B>(self, 17).map(u17::new)
     }
 
-    fn read_u18<T: ByteOrder>(&mut self) -> std::io::Result<u18> {
-        let mut buf = [u1::new(0); 18];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u18(&buf))
+    fn read_u18<B: ByteOrder>(&mut self) -> std::io::Result<u18> {
+        read_uN::<_, B>(self, 18).map(u18::new)
     }
 
-    fn read_u19<T: ByteOrder>(&mut self) -> std::io::Result<u19> {
-        let mut buf = [u1::new(0); 19];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u19(&buf))
+    fn read_u19<B: ByteOrder>(&mut self) -> std::io::Result<u19> {
+        read_uN::<_, B>(self, 19).map(u19::new)
     }
 
-    fn read_u20<T: ByteOrder>(&mut self) -> std::io::Result<u20> {
-        let mut buf = [u1::new(0); 20];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u20(&buf))
+    fn read_u20<B: ByteOrder>(&mut self) -> std::io::Result<u20> {
+        read_uN::<_, B>(self, 20).map(u20::new)
     }
 
-    fn read_u21<T: ByteOrder>(&mut self) -> std::io::Result<u21> {
-        let mut buf = [u1::new(0); 21];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u21(&buf))
+    fn read_u21<B: ByteOrder>(&mut self) -> std::io::Result<u21> {
+        read_uN::<_, B>(self, 21).map(u21::new)
     }
 
-    fn read_u22<T: ByteOrder>(&mut self) -> std::io::Result<u22> {
-        let mut buf = [u1::new(0); 22];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u22(&buf))
+    fn read_u22<B: ByteOrder>(&mut self) -> std::io::Result<u22> {
+        read_uN::<_, B>(self, 22).map(u22::new)
     }
 
-    fn read_u23<T: ByteOrder>(&mut self) -> std::io::Result<u23> {
-        let mut buf = [u1::new(0); 23];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u23(&buf))
+    fn read_u23<B: ByteOrder>(&mut self) -> std::io::Result<u23> {
+        read_uN::<_, B>(self, 23).map(u23::new)
     }
 
-    fn read_u24<T: ByteOrder>(&mut self) -> std::io::Result<u24> {
-        let mut buf = [u1::new(0); 24];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u24(&buf))
+    fn read_u24<B: ByteOrder>(&mut self) -> std::io::Result<u24> {
+        read_uN::<_, B>(self, 24).map(u24::new)
     }
 
-    fn read_u25<T: ByteOrder>(&mut self) -> std::io::Result<u25> {
-        let mut buf = [u1::new(0); 25];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u25(&buf))
+    fn read_u25<B: ByteOrder>(&mut self) -> std::io::Result<u25> {
+        read_uN::<_, B>(self, 25).map(u25::new)
     }
 
-    fn read_u26<T: ByteOrder>(&mut self) -> std::io::Result<u26> {
-        let mut buf = [u1::new(0); 26];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u26(&buf))
+    fn read_u26<B: ByteOrder>(&mut self) -> std::io::Result<u26> {
+        read_uN::<_, B>(self, 26).map(u26::new)
     }
 
-    fn read_u27<T: ByteOrder>(&mut self) -> std::io::Result<u27> {
-        let mut buf = [u1::new(0); 27];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u27(&buf))
+    fn read_u27<B: ByteOrder>(&mut self) -> std::io::Result<u27> {
+        read_uN::<_, B>(self, 27).map(u27::new)
     }
 
-    fn read_u28<T: ByteOrder>(&mut self) -> std::io::Result<u28> {
-        let mut buf = [u1::new(0); 28];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u28(&buf))
+    fn read_u28<B: ByteOrder>(&mut self) -> std::io::Result<u28> {
+        read_uN::<_, B>(self, 28).map(u28::new)
     }
 
-    fn read_u29<T: ByteOrder>(&mut self) -> std::io::Result<u29> {
-        let mut buf = [u1::new(0); 29];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u29(&buf))
+    fn read_u29<B: ByteOrder>(&mut self) -> std::io::Result<u29> {
+        read_uN::<_, B>(self, 29).map(u29::new)
     }
 
-    fn read_u30<T: ByteOrder>(&mut self) -> std::io::Result<u30> {
-        let mut buf = [u1::new(0); 30];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u30(&buf))
+    fn read_u30<B: ByteOrder>(&mut self) -> std::io::Result<u30> {
+        read_uN::<_, B>(self, 30).map(u30::new)
     }
 
-    fn read_u31<T: ByteOrder>(&mut self) -> std::io::Result<u31> {
-        let mut buf = [u1::new(0); 31];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u31(&buf))
+    fn read_u31<B: ByteOrder>(&mut self) -> std::io::Result<u31> {
+        read_uN::<_, B>(self, 31).map(u31::new)
     }
 
-    fn read_u32<T: ByteOrder>(&mut self) -> std::io::Result<u32> {
-        let mut buf = [u1::new(0); 32];
-        self.read_bits_exact(&mut buf)?;
-        Ok(<T>::read_u32(&buf))
+    fn read_u32<B: ByteOrder>(&mut self) -> std::io::Result<u32> {
+        read_uN::<_, B>(self, 32)
     }
 }
 
-impl<T> BitReadExts for T where T: BitRead {}
-
-#[cfg(test)]
-mod test {
-    use bitvec::{order::Msb0, vec::BitVec};
-
-    use super::BitReadExts;
-    use crate::{bit_cursor::BitCursor, byte_order::NetworkOrder};
-
-    #[test]
-    fn test_read() {
-        let data = BitVec::<u8, Msb0>::from_slice(&42u32.to_be_bytes());
-        let mut cursor = BitCursor::new(data);
-
-        assert_eq!(cursor.read_u32::<NetworkOrder>().unwrap(), 42);
-    }
-}
+impl<T: BitRead + ?Sized> BitReadExts for T {}
