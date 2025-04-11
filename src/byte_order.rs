@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 pub trait ByteOrder {
-    fn write_u32_to_bits<O: BitStore>(bits: &mut BitSliceMut<O>, value: u32);
+    fn write_u32_to_bits<O: BitStore>(bits: &mut BitSlice<O>, value: u32);
     fn read_u32_from_bits<O: BitStore>(bits: &BitSlice<O>) -> u32;
 }
 
@@ -12,7 +12,7 @@ pub struct LittleEndian {}
 pub type NetworkOrder = BigEndian;
 
 impl ByteOrder for BigEndian {
-    fn write_u32_to_bits<O: BitStore>(bits: &mut BitSliceMut<O>, value: u32) {
+    fn write_u32_to_bits<O: BitStore>(bits: &mut BitSlice<O>, value: u32) {
         let n = bits.len();
         assert!(n <= 32, "cannot write more than 32 bits");
 
@@ -33,7 +33,7 @@ impl ByteOrder for BigEndian {
 }
 
 impl ByteOrder for LittleEndian {
-    fn write_u32_to_bits<O: BitStore>(bits: &mut BitSliceMut<O>, value: u32) {
+    fn write_u32_to_bits<O: BitStore>(bits: &mut BitSlice<O>, value: u32) {
         let n = bits.len();
         assert!(n <= 32, "cannot write more than 32 bits");
 

@@ -207,6 +207,7 @@ mod test {
     use nsw_types::*;
 
     use crate::bit_read::BitRead;
+    use crate::bit_read_exts::BitReadExts;
     use crate::bit_seek::BitSeek;
     use crate::bit_write_exts::BitWriteExts;
     use crate::borrow_bits::{BorrowBits, BorrowBitsMut};
@@ -445,5 +446,19 @@ mod test {
         let mut data = [0u8; 4];
         let u8_slice = &mut data[..];
         test_split_mut_helper(u8_slice, |v| v.to_vec());
+    }
+
+    #[test]
+    fn test_alignment_reads_writes() {
+        for offset in 0..8 {
+            let buf = vec![0u8; 4];
+            let mut cursor = BitCursor::new(buf);
+            cursor.set_position(offset);
+            let value = 0xDEADu16;
+            cursor.write_u16::<BigEndian>(value).unwrap();
+            cursor.set_position(offset);
+            let read_value = cursor.read_u16::<BigEndian>().unwrap();
+            assert_eq!(value, read_value, "offset {offset}");
+        }
     }
 }

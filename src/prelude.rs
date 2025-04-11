@@ -3,7 +3,7 @@
 pub use bitvec::{access::BitSafeU8, order::Msb0};
 
 // Re-export your safe aliases (always Msb0 + u8-based)
-pub use crate::bit_types::{BitSlice, BitSliceMut, BitStore, BitVec};
+pub use crate::bit_types::{BitSlice, BitStore, BitVec};
 
 // Core traits
 pub use crate::bit_cursor::BitCursor;
