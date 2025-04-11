@@ -1,18 +1,19 @@
-use nsw_types::u1;
+use crate::prelude::*;
 
 pub trait BitRead: std::io::Read {
     /// Pull some bits from this source into the specified buffer, returning how many bytes were read.
-    fn read_bits(&mut self, buf: &mut [u1]) -> std::io::Result<usize>;
+    /// TODO: rename 'buf' to 'dest'
+    fn read_bits(&mut self, buf: &mut BitSlice) -> std::io::Result<usize>;
 
     /// Read the exact number of bits required to fill buf.
-    fn read_bits_exact(&mut self, buf: &mut [u1]) -> std::io::Result<()> {
+    fn read_bits_exact(&mut self, buf: &mut BitSlice) -> std::io::Result<()> {
         read_bits_exact_helper(self, buf)
     }
 }
 
 fn read_bits_exact_helper<R: BitRead + ?Sized>(
     this: &mut R,
-    mut buf: &mut [u1],
+    mut buf: &mut BitSlice,
 ) -> std::io::Result<()> {
     while !buf.is_empty() {
         // Note: unlike std::io::Read, we don't have a special case for an 'interrupted'
