@@ -152,8 +152,8 @@ impl<T> BitRead for BitCursor<T>
 where
     T: BorrowBits,
 {
-    fn read_bits(&mut self, buf: &mut BitSlice) -> std::io::Result<usize> {
-        let n = BitRead::read_bits(&mut BitCursor::split(self).1, buf)?;
+    fn read_bits(&mut self, dest: &mut BitSlice) -> std::io::Result<usize> {
+        let n = BitRead::read_bits(&mut BitCursor::split(self).1, dest)?;
         self.pos += n as u64;
         Ok(n)
     }
@@ -179,8 +179,8 @@ where
     T: BorrowBitsMut,
     BitCursor<T>: std::io::Write,
 {
-    fn write_bits<O: BitStore>(&mut self, buf: &BitSlice<O>) -> std::io::Result<usize> {
-        let n = BitWrite::write_bits(&mut BitCursor::split_mut(self).1, buf)?;
+    fn write_bits<O: BitStore>(&mut self, source: &BitSlice<O>) -> std::io::Result<usize> {
+        let n = BitWrite::write_bits(&mut BitCursor::split_mut(self).1, source)?;
         self.pos += n as u64;
         Ok(n)
     }
