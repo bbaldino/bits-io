@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+/// A trait for objects which are bit-oriented sinks.
 pub trait BitWrite: std::io::Write {
     /// Write a buffer into this writer, returning how many bytes were written.
     fn write_bits<O: BitStore>(&mut self, source: &BitSlice<O>) -> std::io::Result<usize>;

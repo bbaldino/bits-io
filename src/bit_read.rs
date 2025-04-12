@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+/// The BitRead trait allows for reading bits from a source.
 pub trait BitRead: std::io::Read {
     /// Pull some bits from this source into the specified buffer, returning how many bytes were read.
     fn read_bits(&mut self, dest: &mut BitSlice) -> std::io::Result<usize>;
