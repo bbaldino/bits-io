@@ -1,7 +1,24 @@
 # bits-io
 
-bits-io provides types which mimic those in `std::io` except which operate on
-the bit level instead of the byte level.
+Bit-level IO utilities for Rust, inspired by std::io patterns but designed for
+working with bits instead of bytes.
+
+Built on top of [`bitvec`](https://docs.rs/bitvec) for bit-level abstractions
+and [nsw-types](https://github.com/bbaldino/nsw-types) for non-standard-width
+types.
+
+## Overview
+
+`bits-io` provides:
+
+- `BitCursor` - Like `std::io::Cursor`, but for bits.
+- `BitRead` / `BitWrite` - Like `std::io::Read` and `Write`, but for bits.
+- `BitReadExts` / `BitWriteExts` - Extensions for reading/writing `u1` through
+`u32` values.
+- `ByteOrder` - Support for BigEndian and LittleEndian bit ordering.
+- `BitSlice` - A type alias for `&BitSlice<u8, Msb0>` (all APIs here use u8
+storage and Msb0 ordering).
+- Helpful macros for defining bits and bitvecs with u8 storage and Msb0 order.
 
 ## BitCursor
 
@@ -14,7 +31,7 @@ seeking by a number of bits.
 
 `BitRead` mimics the
 [`std::io::Read`](https://doc.rust-lang.org/std/io/trait.Read.html) trait, but
-its API is defined in terms of reading from "bit slices" instead of `u8` slices
+its API is defined in terms of reading into "bit slices" instead of `u8` slices
 (`&[u8]`) like `std::io::Read`.  It leverages the `BitSlice` type defined in
 the [bitvec](https://docs.rs/bitvec/latest/bitvec/) crate.
 
@@ -22,7 +39,7 @@ the [bitvec](https://docs.rs/bitvec/latest/bitvec/) crate.
 
 `BitWrite` mimics the
 [`std::io::Write`](https://doc.rust-lang.org/std/io/trait.Write.html) trait,
-but its API is defined in terms of reading from "bit slices" instead of `u8`
+but its API is defined in terms of writing from "bit slices" instead of `u8`
 slices (`&[u8]`).  It leverages the `BitSlice` type defined in the
 [bitvec](https://docs.rs/bitvec/latest/bitvec/) crate.
 
