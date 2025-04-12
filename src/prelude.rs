@@ -1,12 +1,13 @@
-// Re-export bitvec core types so users don't need to depend on bitvec directly
-// pub use bitvec::{access::BitSafeU8, order::Msb0, slice::BitSlice as OgBitSlice, store::BitStore};
-pub use bitvec::{access::BitSafeU8, order::Msb0};
-
-// Re-export your safe aliases (always Msb0 + u8-based)
+// Bitvec wrappers that are always u8 & Msb0
 pub use crate::bit_types::{BitSlice, BitStore, BitVec};
+pub use crate::{bits, bitvec};
 
 // Core traits
 pub use crate::bit_cursor::BitCursor;
 pub use crate::bit_read::BitRead;
+pub use crate::bit_read_exts::BitReadExts;
+pub use crate::bit_seek::BitSeek;
 pub use crate::bit_write::BitWrite;
-pub use crate::byte_order::{BigEndian, ByteOrder, LittleEndian};
+pub use crate::bit_write_exts::BitWriteExts;
+pub use crate::borrow_bits::{BorrowBits, BorrowBitsMut};
+pub use crate::byte_order::{BigEndian, ByteOrder, LittleEndian, NetworkOrder};

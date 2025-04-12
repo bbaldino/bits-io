@@ -59,7 +59,6 @@ mod tests {
     use crate::{bit_read_exts::BitReadExts, bit_write_exts::BitWriteExts};
 
     use super::*;
-    // use bitvec::prelude::*;
     #[test]
     fn test_big_endian_read_write() {
         let test_cases = [

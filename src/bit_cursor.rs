@@ -65,7 +65,7 @@ impl<T> BitCursor<T>
 where
     T: BorrowBitsMut,
 {
-    pub fn split_mut(&mut self) -> (&mut BitSlice<BitSafeU8>, &mut BitSlice<BitSafeU8>) {
+    pub fn split_mut(&mut self) -> (&mut BitSlice<impl BitStore>, &mut BitSlice<impl BitStore>) {
         let bits = self.inner.borrow_bits_mut();
         let (left, right) = bits.split_at_mut(self.pos as usize);
         (left, right)
@@ -201,26 +201,15 @@ mod test {
     use std::io::{Seek, SeekFrom};
 
     use crate::prelude::*;
-    use bitvec::bits;
-    use bitvec::bitvec;
-    use bitvec::view::BitView;
+    use bitvec::{order::Msb0, view::BitView};
     use nsw_types::*;
-
-    use crate::bit_read::BitRead;
-    use crate::bit_read_exts::BitReadExts;
-    use crate::bit_seek::BitSeek;
-    use crate::bit_write_exts::BitWriteExts;
-    use crate::borrow_bits::{BorrowBits, BorrowBitsMut};
-    use crate::byte_order::NetworkOrder;
-
-    use super::BitCursor;
 
     fn test_read_bits_hepler<T: BorrowBits>(buf: T, expected: &[u8]) {
         let expected_bits = expected.view_bits::<Msb0>();
         let mut cursor = BitCursor::new(buf);
-        let mut read_buf = bitvec![u8, Msb0; 0; expected_bits.len()];
+        let mut read_buf = bitvec![0; expected_bits.len()];
         assert_eq!(
-            cursor.read_bits(&mut read_buf).unwrap(),
+            cursor.read_bits(read_buf.as_mut_bitslice()).unwrap(),
             expected_bits.len()
         );
         assert_eq!(read_buf, expected_bits);
@@ -260,23 +249,23 @@ mod test {
         let data = BitVec::from_vec(vec![0b11001100, 0b00110011]);
         let mut cursor = BitCursor::new(data);
 
-        let mut read_buf = bitvec![u8, Msb0; 0; 4];
+        let mut read_buf = bitvec![0; 4];
 
         cursor.bit_seek(SeekFrom::End(-2)).expect("valid seek");
         // Should now be reading the last 2 bits
         assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 2);
-        assert_eq!(read_buf, bits![u8, Msb0; 1, 1, 0, 0]);
+        assert_eq!(read_buf, bits![1, 1, 0, 0]);
         // We already read to the end
         assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 0);
 
         // The read after the seek brought the cursor back to the end.  Now jump back 6 bits.
         cursor.bit_seek(SeekFrom::Current(-6)).expect("valid seek");
         assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 4);
-        assert_eq!(read_buf, bits![u8, Msb0; 1, 1, 0, 0]);
+        assert_eq!(read_buf, bits![1, 1, 0, 0]);
 
         cursor.bit_seek(SeekFrom::Start(4)).expect("valid seek");
         assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 4);
-        assert_eq!(read_buf, bits![u8, Msb0; 1, 1, 0, 0]);
+        assert_eq!(read_buf, bits![1, 1, 0, 0]);
     }
 
     #[test]
@@ -284,16 +273,16 @@ mod test {
         let data = BitVec::from_vec(vec![0b11001100, 0b00110011]);
         let mut cursor = BitCursor::new(data);
 
-        let mut read_buf = bitvec![u8, Msb0; 0; 2];
+        let mut read_buf = bitvec![0; 2];
         cursor.seek(SeekFrom::End(-1)).unwrap();
         // Should now be reading the last byte
         assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 2);
-        assert_eq!(read_buf, bits![u8, Msb0; 0, 0]);
+        assert_eq!(read_buf, bits![0, 0]);
         // Go back one byte
         cursor.seek(SeekFrom::Current(-1)).unwrap();
         // We should now be in bit position 2
         assert_eq!(cursor.read_bits(&mut read_buf).unwrap(), 2);
-        assert_eq!(read_buf, bits![u8, Msb0; 0, 0]);
+        assert_eq!(read_buf, bits![0, 0]);
     }
 
     fn test_write_bits_helper<T: BorrowBitsMut>(buf: T) -> T {
