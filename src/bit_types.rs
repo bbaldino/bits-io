@@ -9,6 +9,9 @@ pub type BitVec = bitvec::vec::BitVec<u8, bitvec::order::Msb0>;
 
 #[macro_export]
 macro_rules! bits {
+    (mut $($bit:expr),* $(,)?) => {
+        $crate::internal::bitvec::bits![mut u8, $crate::internal::bitvec::order::Msb0; $($bit),*]
+    };
     ($($bit:expr),* $(,)?) => {
         $crate::internal::bitvec::bits![u8, $crate::internal::bitvec::order::Msb0; $($bit),*]
     };
