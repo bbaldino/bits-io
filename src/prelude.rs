@@ -1,3 +1,7 @@
+#[doc(hidden)]
+pub mod internal {
+    pub use bitvec::{bits, bitvec};
+}
 // Bitvec wrappers that are always u8 & Msb0
 pub use crate::bit_types::{BitSlice, BitStore, BitVec};
 pub use crate::{bits, bitvec};

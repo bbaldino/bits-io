@@ -1,3 +1,9 @@
+#[doc(hidden)]
+pub mod internal {
+    pub mod bitvec {
+        pub use bitvec::*;
+    }
+}
 pub mod bit_cursor;
 pub mod bit_read;
 pub mod bit_read_exts;

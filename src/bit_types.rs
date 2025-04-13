@@ -10,7 +10,7 @@ pub type BitVec = bitvec::vec::BitVec<u8, bitvec::order::Msb0>;
 #[macro_export]
 macro_rules! bits {
     ($($bit:expr),* $(,)?) => {
-        bitvec::bits!(u8, bitvec::order::Msb0; $($bit),*)
+        $crate::internal::bitvec::bits![u8, $crate::internal::bitvec::order::Msb0; $($bit),*]
     };
 }
 
@@ -18,11 +18,11 @@ macro_rules! bits {
 macro_rules! bitvec {
     // Repeat value form: bitvec_u8![value; len]
     ($value:expr; $len:expr) => {
-        bitvec::bitvec!(u8, bitvec::order::Msb0; $value; $len)
+        $crate::internal::bitvec::bitvec!(u8, $crate::internal::bitvec::order::Msb0; $value; $len)
     };
     // List of explicit bits: bitvec_u8![1, 0, 1, 1]
     ($($bit:expr),* $(,)?) => {
-        bitvec::bitvec!(u8, bitvec::order::Msb0; $($bit),*)
+        $crate::internal::bitvec::bitvec!(u8, $crate::internal::bitvec::order::Msb0; $($bit),*)
     };
 
 }
