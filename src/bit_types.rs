@@ -17,7 +17,9 @@ pub type BitVec = bitvec::vec::BitVec<u8, bitvec::order::Msb0>;
 ///
 /// # Errors
 ///
-/// This function will return an error if .
+/// This function will return an error if len is too large, or if data is ill-formed. This fails if
+/// it has an error while encoding the &mut BitSlice, and succeeds if it is able to produce a
+/// correctly encoded value.
 ///
 /// # Safety
 /// See bitvec::slice::from_raw_parts_mut

@@ -56,9 +56,9 @@ impl ByteOrder for LittleEndian {
 
 // #[cfg(test)]
 // mod tests {
-//     use crate::{bit_read_exts::BitReadExts, bit_write_exts::BitWriteExts};
-//
 //     use super::*;
+//     use crate::buf::bit_buf_exts::BitBufExts;
+//
 //     #[test]
 //     fn test_big_endian_read_write() {
 //         let test_cases = [
@@ -72,22 +72,22 @@ impl ByteOrder for LittleEndian {
 //         for &(value, bits) in &test_cases {
 //             let mut cursor = BitCursor::new(vec![0u8; 8]);
 //
-//             if bits <= 8 {
-//                 cursor.write_u8(value as u8).unwrap();
-//             } else if bits <= 16 {
-//                 cursor.write_u16::<BigEndian>(value as u16).unwrap();
-//             } else {
-//                 cursor.write_u32::<BigEndian>(value as u32).unwrap();
-//             }
+//             // if bits <= 8 {
+//             //     cursor.write_u8(value as u8).unwrap();
+//             // } else if bits <= 16 {
+//             //     cursor.write_u16::<BigEndian>(value as u16).unwrap();
+//             // } else {
+//             //     cursor.write_u32::<BigEndian>(value as u32).unwrap();
+//             // }
 //
 //             cursor.set_position(0);
 //
 //             let read_value = if bits <= 8 {
-//                 cursor.read_u8().unwrap() as u64
+//                 cursor.get_u8().unwrap() as u64
 //             } else if bits <= 16 {
-//                 cursor.read_u16::<BigEndian>().unwrap() as u64
+//                 cursor.get_u16::<BigEndian>().unwrap() as u64
 //             } else {
-//                 cursor.read_u32::<BigEndian>().unwrap() as u64
+//                 cursor.get_u32::<BigEndian>().unwrap() as u64
 //             };
 //
 //             assert_eq!(value, read_value, "BigEndian failed for {} bits", bits);
