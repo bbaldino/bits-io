@@ -5,7 +5,7 @@ pub mod internal {
     }
 }
 pub mod bit_types;
-pub mod byte_order;
+pub mod buf;
 pub mod io;
 pub mod prelude;
 
