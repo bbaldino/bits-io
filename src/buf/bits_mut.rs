@@ -2,19 +2,20 @@ use std::ops::{Deref, DerefMut};
 
 use crate::prelude::*;
 
+use bitvec::view::AsMutBits;
 use bytes::{Bytes, BytesMut};
 
 use super::util::bytes_needed;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BitsMut {
-    inner: BytesMut,
+    pub(crate) inner: BytesMut,
     /// The start of this instance's view of the underlying storage
-    bit_start: usize,
+    pub(crate) bit_start: usize,
     /// How many bits, from bit_start, are part of this view
-    bit_len: usize,
+    pub(crate) bit_len: usize,
     /// This view's capacity
-    capacity: usize,
+    pub(crate) capacity: usize,
 }
 
 impl BitsMut {
@@ -79,6 +80,63 @@ impl BitsMut {
     /// The entire length of the object will be filled with zeros.
     pub fn zeroed_bytes(len: usize) -> Self {
         Self::zeroed(len * 8)
+    }
+
+    /// Converts self into an immutable [`Bits`].
+    /// The conversion is zero cost and is used to indicate that the slice referenced by the handle
+    /// will no longer be mutated. Once the conversion is done, the handle can be cloned and shared
+    /// across threads.
+    pub fn freeze(self) -> Bits {
+        Bits {
+            inner: self.inner.freeze(),
+            bit_start: self.bit_start,
+            bit_len: self.bit_len,
+        }
+    }
+
+    // TODO: TEST ME
+    pub fn extend_from_slice(&mut self, slice: &BitSlice) {
+        let count = slice.len();
+        self.reserve(count);
+
+        let dest = self.spare_capacity_mut();
+        assert!(dest.len() >= count);
+        self.inner.as_mut_bits().copy_from_bitslice(slice);
+
+        self.advance_mut(count);
+    }
+
+    /// Returns the remaining spare capacity of the buffer as a `&mut BitSlice`.
+    ///
+    /// The returned slice can be used to fill the buffer with data (e.g. by reading from a file)
+    /// before marking the data as initialized using the set_len method.
+    pub fn spare_capacity_mut(&mut self) -> &mut BitSlice {
+        let bit_start = self.bit_start + self.bit_len;
+        let len = self.capacity - self.bit_len;
+
+        println!(
+            "spare_capacity_mut, inner len: {}, inner capacity: {}",
+            self.inner.len(),
+            self.inner.capacity()
+        );
+        &mut BitSlice::from_slice_mut(&mut self.inner)[bit_start..bit_start + len]
+    }
+
+    /// Reserves capacity for at least additional more bits to be inserted into the given
+    /// `BitsMut`.
+    pub fn reserve(&mut self, additional: usize) {
+        let len = self.len();
+        let remainder = self.capacity - len;
+        println!("reserving {additional} bits, have {remainder} remaining");
+
+        if additional <= remainder {
+            return;
+        }
+        let bytes_needed = bytes_needed(additional);
+        println!("reserving {bytes_needed} additional bytes in inner storage");
+        self.inner.reserve(bytes_needed);
+        self.capacity = self.inner.capacity() * 8;
+        println!("self.capacity is now {}", self.capacity);
     }
 
     /// Splits the buffer into two at the given index.
@@ -165,10 +223,6 @@ impl BitsMut {
     }
 
     /// Advance the buffer by `count` bits without bounds checking
-    ///
-    /// # SAFETY
-    ///
-    /// The caller must ensure that `count` <= `self.capacity`.
     fn advance_unchecked(&mut self, count: usize) {
         if count == 0 {
             return;

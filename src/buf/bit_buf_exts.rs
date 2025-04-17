@@ -24,14 +24,7 @@ pub trait BitBufExts: BitBuf {
     }
 
     fn get_u1(&mut self) -> std::io::Result<u1> {
-        let bits = self.chunk();
-        #[allow(clippy::len_zero)]
-        if bits.len() < 1 {
-            return Err(std::io::ErrorKind::UnexpectedEof.into());
-        }
-        let val = bits[0];
-        self.advance(1);
-        Ok(u1::new(val as u8))
+        self.get_fixed::<1, _>()
     }
 
     fn get_u2(&mut self) -> std::io::Result<u2> {

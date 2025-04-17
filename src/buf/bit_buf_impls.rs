@@ -1,4 +1,3 @@
-use super::{bit_buf::BitBuf, bits::Bits};
 use crate::prelude::*;
 
 impl BitBuf for Bits {
@@ -9,6 +8,21 @@ impl BitBuf for Bits {
 
     fn remaining(&self) -> usize {
         self.bit_len
+    }
+
+    fn chunk(&self) -> &BitSlice {
+        &BitSlice::from_slice(&self.inner)[self.bit_start..self.bit_start + self.bit_len]
+    }
+}
+
+impl BitBuf for BitsMut {
+    fn advance(&mut self, count: usize) {
+        assert!(count <= self.remaining(), "advance past end of Bits");
+        self.advance_mut(count);
+    }
+
+    fn remaining(&self) -> usize {
+        self.len()
     }
 
     fn chunk(&self) -> &BitSlice {
