@@ -3,9 +3,10 @@
 Bit-level IO utilities for Rust, inspired by std::io patterns but designed for
 working with bits instead of bytes.
 
-Built on top of [`bitvec`](https://docs.rs/bitvec) for bit-level abstractions
-and [nsw-types](https://github.com/bbaldino/nsw-types) for non-standard-width
-types.
+Built on top of [`bitvec`](https://docs.rs/bitvec) for bit-level abstractions,
+[nsw-types](https://github.com/bbaldino/nsw-types) for non-standard-width types
+and [bytes](https://docs.rs/bytes/latest/bytes/index.html) for efficient
+storage.
 
 ## Overview
 
@@ -13,9 +14,8 @@ types.
 
 - `BitCursor` - Like `std::io::Cursor`, but for bits.
 - `BitRead` / `BitWrite` - Like `std::io::Read` and `Write`, but for bits.
-- `BitReadExts` / `BitWriteExts` - Extensions for reading/writing `u1` through
-`u32` values.
-- `ByteOrder` - Support for BigEndian and LittleEndian bit ordering.
+- `Bits` / `BitsMut` - Like `bytes::Bytes` and `BytesMut` but with bit-level APIs
+- `BitBuf` / `BitBufMt` - Like `bytes::Buf` and `BufMut`
 - `BitSlice` - A type alias for `&BitSlice<u8, Msb0>` (all APIs here use u8
 storage and Msb0 ordering).
 - Helpful macros for defining bits and bitvecs with u8 storage and Msb0 order.
