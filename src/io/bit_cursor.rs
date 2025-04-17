@@ -3,13 +3,7 @@ use std::{
     io::{Read, Seek, SeekFrom, Write},
 };
 
-use crate::{
-    bit_read::BitRead,
-    bit_seek::BitSeek,
-    bit_write::BitWrite,
-    borrow_bits::{BorrowBits, BorrowBitsMut},
-    prelude::*,
-};
+use crate::prelude::*;
 
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct BitCursor<T> {
@@ -55,6 +49,7 @@ impl<T> BitCursor<T>
 where
     T: BorrowBits,
 {
+    /// Splits the underlying slice at the cursor position and returns each half.
     pub fn split(&self) -> (&BitSlice, &BitSlice) {
         let bits = self.inner.borrow_bits();
         bits.split_at(self.pos as usize)
@@ -65,6 +60,7 @@ impl<T> BitCursor<T>
 where
     T: BorrowBitsMut,
 {
+    /// Splits the underlying slice at the cursor position and returns each half mutably
     pub fn split_mut(&mut self) -> (&mut BitSlice<impl BitStore>, &mut BitSlice<impl BitStore>) {
         let bits = self.inner.borrow_bits_mut();
         let (left, right) = bits.split_at_mut(self.pos as usize);
@@ -202,7 +198,6 @@ mod test {
 
     use crate::prelude::*;
     use bitvec::{order::Msb0, view::BitView};
-    use nsw_types::*;
 
     fn test_read_bits_hepler<T: BorrowBits>(buf: T, expected: &[u8]) {
         let expected_bits = expected.view_bits::<Msb0>();
@@ -285,52 +280,39 @@ mod test {
         assert_eq!(read_buf, bits![0, 0]);
     }
 
-    fn test_write_bits_helper<T: BorrowBitsMut>(buf: T) -> T {
+    fn test_write_bits_helper<T>(buf: T)
+    where
+        T: BorrowBitsMut + Debug,
+        BitCursor<T>: std::io::Write,
+    {
         let mut cursor = BitCursor::new(buf);
-        cursor.write_u4(u4::new(0b1100)).unwrap();
-        cursor.write_u2(u2::new(0b11)).unwrap();
-        cursor.write_u2(u2::new(0b00)).unwrap();
-        cursor.write_u3(u3::new(0b110)).unwrap();
-        cursor.write_u5(u5::new(0b01100)).unwrap();
-        cursor.into_inner()
+        let data = bits![1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0];
+        assert_eq!(cursor.write_bits(data).unwrap(), 16);
+        assert_eq!(cursor.into_inner().borrow_bits(), data);
     }
 
     #[test]
     fn test_write_bits_bitvec() {
         let buf = BitVec::from_vec(vec![0; 2]);
-
-        assert_eq!(
-            test_write_bits_helper(buf),
-            BitVec::from_vec(vec![0b11001100, 0b11001100])
-        );
+        test_write_bits_helper(buf);
     }
 
     #[test]
     fn test_write_bits_vec() {
         let buf: Vec<u8> = vec![0, 0];
-
-        assert_eq!(test_write_bits_helper(buf), [0b11001100, 0b11001100]);
+        test_write_bits_helper(buf);
     }
 
     #[test]
     fn test_write_bits_bit_slice() {
-        let mut data = [0u8; 2];
-        let buf: &mut BitSlice = data.view_bits_mut::<Msb0>();
-
-        assert_eq!(
-            test_write_bits_helper(buf),
-            BitVec::from_vec(vec![0b11001100, 0b11001100]).as_bitslice()
-        );
+        let mut buf = bitvec![0; 16];
+        test_write_bits_helper(buf.as_mut_bitslice());
     }
 
     #[test]
     fn test_write_bits_u8_slice() {
         let mut buf = [0u8; 2];
-
-        assert_eq!(
-            test_write_bits_helper(&mut buf[..]),
-            [0b11001100, 0b11001100]
-        );
+        test_write_bits_helper(&mut buf[..]);
     }
 
     fn test_split_helper<T: BorrowBits>(buf: T, expected: &[u8]) {
@@ -396,26 +378,32 @@ mod test {
     }
 
     // Assumes the given buf is 4 bytes long
-    fn test_split_mut_helper<T, U, F>(buf: T, create_expected: F)
+    fn test_split_mut_helper<T>(buf: T)
     where
-        T: BorrowBitsMut + PartialEq<U> + Debug,
-        U: Debug,
-        F: FnOnce(&[u8]) -> U,
+        T: BorrowBitsMut + Debug,
+        BitCursor<T>: std::io::Write,
     {
         let mut cursor = BitCursor::new(buf);
         cursor.seek(SeekFrom::Start(2)).unwrap();
-        {
-            let (mut before, mut after) = cursor.split_mut();
 
-            before
-                .write_u16::<NetworkOrder>(0b1111111100000000)
+        {
+            let (mut left, mut right) = cursor.split_mut();
+
+            left.write_bits(bits![1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0])
                 .unwrap();
-            after.write_u16::<NetworkOrder>(0b1100110000110011).unwrap();
+            right
+                .write_bits(bits![0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1])
+                .unwrap();
         }
 
         let data = cursor.into_inner();
-        let expected = create_expected(&[0b11111111, 0b00000000, 0b11001100, 0b00110011]);
-        assert_eq!(data, expected);
+        assert_eq!(
+            data.borrow_bits(),
+            bits![
+                1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0,
+                1, 1, 1, 1
+            ]
+        );
     }
 
     #[test]
@@ -423,18 +411,18 @@ mod test {
         let data = [0u8; 4];
 
         let vec = Vec::from(data);
-        test_split_mut_helper(vec, |v| v.to_vec());
+        test_split_mut_helper(vec);
 
         let bitvec = BitVec::from_vec(vec![0u8; 4]);
-        test_split_mut_helper(bitvec, |v| BitVec::from_vec(v.to_vec()));
+        test_split_mut_helper(bitvec);
 
         let mut data = [0u8; 4];
         let bitslice: &mut BitSlice = data.view_bits_mut();
-        test_split_mut_helper(bitslice, |v| BitVec::from_vec(v.to_vec()));
+        test_split_mut_helper(bitslice);
 
         let mut data = [0u8; 4];
         let u8_slice = &mut data[..];
-        test_split_mut_helper(u8_slice, |v| v.to_vec());
+        test_split_mut_helper(u8_slice);
     }
 
     #[test]
@@ -443,11 +431,15 @@ mod test {
             let buf = vec![0u8; 4];
             let mut cursor = BitCursor::new(buf);
             cursor.set_position(offset);
-            let value = 0xDEADu16;
-            cursor.write_u16::<BigEndian>(value).unwrap();
+            let value = BitVec::from_slice(&[0xDE, 0xAD]);
+
+            cursor.write_bits(value.as_bitslice()).unwrap();
+
             cursor.set_position(offset);
-            let read_value = cursor.read_u16::<BigEndian>().unwrap();
-            assert_eq!(value, read_value, "offset {offset}");
+            let mut read_buf = BitVec::with_capacity(16);
+            read_buf.resize(16, false);
+            cursor.read_bits(read_buf.as_mut_bitslice()).unwrap();
+            assert_eq!(value, read_buf, "offset {offset}");
         }
     }
 }
