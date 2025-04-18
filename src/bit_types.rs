@@ -3,7 +3,24 @@ use bitvec::{
     ptr::{BitPtr, BitSpanError, Mut},
 };
 
-pub trait BitStore: bitvec::store::BitStore {}
+use crate::buf::byte_order::{CopyFromBitSlice, CopyToBitSlice};
+
+mod sealed {
+    pub trait Sealed {}
+    impl Sealed for u8 {}
+    impl Sealed for bitvec::access::BitSafeU8 {}
+}
+
+// We use sealed above to ensure that these are the only two possible impls of our `BitStore`
+// wrapper.  This makes the logic in `byte_order` more straightforward because the compiler knows
+// that the two specialized implementations of `WriteU32ToBits` are the _only_ possible values.
+// TODO:: I'm not sure if this trait needs to be public or not.  If it does, then it might be good
+// to look at removing the write_u32_to_bits method to another internal trait, can't decide if it
+// feels good or bad as part of the public API
+pub trait BitStore:
+    bitvec::store::BitStore + sealed::Sealed + CopyFromBitSlice + CopyToBitSlice
+{
+}
 
 impl BitStore for u8 {}
 impl BitStore for bitvec::access::BitSafeU8 {}

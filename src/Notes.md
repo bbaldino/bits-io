@@ -48,3 +48,105 @@ explicitly byte-level abstractions and need to be 'adapted'?
 
 ----> The way forward here ended up being adding a separate helper trait that
 can bridge all the gaps and using that
+
+## BitBuf::advance vs BitBufMut::advance_mut
+
+'advance' on a Buf/BitBuf is "advancing" the start of the view.  'advance_mut' on BitBufMut/BufMut is advancing the _write position_ of the view.
+
+## Managing BitStore compatibility
+
+Originally the read_uXX and write_uXX methods all copied the data over
+bit-by-bit.  This felt a bit wasteful and inefficient and it made that code
+very "special" compared to the other APIs.  `bytes` does this by converting all
+types to slices and then putting a slice, so I wanted to do something similar
+but with BitSlices.  This means we'd have a trait like this:
+
+```rust
+pub trait ByteOrder {
+    fn write_u32_to_bits<O: BitStore>(bits: &mut BitSlice<O>, value: u32);
+    fn read_u32_from_bits<O: BitStore>(bits: &BitSlice<O>) -> u32;
+}
+```
+
+Which would then get implemented for `BigEndian` and `LittleEndian`.  Ideally we'd have something like:
+
+```rust
+impl ByteOrder for BigEndian {
+    fn write_u32_to_bits<O: BitStore>(bits: &mut BitSlice<O>, value: u32) {
+        assert!(bits.len() <= 32, "cannot write more than 32 bits");
+        let mut value_be_bytes = value.to_be_bytes();
+        let value_slice = &mut value_be_bytes.view_bits_mut::<Msb0>()[(32 - bits.len())..];
+        bits.copy_from_slice(value_slice);
+    }
+
+    fn read_u32_from_bits<O: BitStore>(bits: &BitSlice<O>) -> u32 {
+        assert!(bits.len() <= 32, "cannot read more than 32 bits into a u32");
+
+        let mut buf = [0u8; 4];
+        let dest = &mut BitSlice::from_slice_mut(&mut buf)[..bits.len()];
+        dest.copy_from_slice(bits);
+        u32::from_be_bytes(buf)
+    }
+}
+```
+
+The problem is that `BitSlice::copy_from_slice` requires that both slices have
+the exact same `BitStore` type.  Even though bits-io _always_ uses `u8`, bitvec
+defines 'safe aliases' for each storage type that can be used when two mutable
+slices overlap the same bytes in their back storage.  In `u8`'s case that alias
+is `BitSafeU8`.  So that means if one of `src` or `dest` is `u8` and the other
+is `BitSafeU8` then we can't copy directly between them.  In each of the
+read/write scenarios, we have flexibility over one of the slices, but not the
+other:
+
+When writing, we control the source's bitslice: we're converting a u32 into
+bytes and then can always create a `BitSlice<u8>` from that, but we don't
+control the slice we're writing _to_: that comes from the caller and could be
+either `BitSlice<u8>` or `BitSlice<BitSafeU8`>.
+
+When reading, we control the destination's bitslice: we create a buffer to read
+the value into and can always create a `BitSlice<u8>` from that, but we don't
+control the source we're reading _from_: that comes from the caller and could
+be either `BitSlice<u8>` or `BitSlice<BitSafeU8>`.
+
+If, in both cases, the source and destination are `BitSlice<u8>`, then we can
+use `BitSlice::copy_from_slice`. But, if they differ, we need some special
+logic.  This means we need to know one case from the other, so we define some
+traits to enable this:
+
+For writing:
+
+```rust
+pub trait CopyFromBitSlice {
+    fn copy_from_slice(dest: &mut BitSlice<Self>, src: &mut BitSlice<u8>)
+    where
+        Self: BitStore + Sized;
+}
+```
+
+For reading:
+
+```rust
+pub trait CopyToBitSlice {
+    fn copy_to_slice(src: &BitSlice<Self>, dest: &mut BitSlice<u8>)
+    where
+        Self: BitStore + Sized;
+}
+```
+
+Then we can have specific implementations for the `BitSafeU8` and `u8` cases.
+When writing from `BitSlice<u8>` to `BitSlice<BitSafeU8>`, we can use
+`BitSlice::split_at_unchecked_mut` to transform the source from a
+`BitSlice<u8>` into a `BitSlice<BitSafeU8>`.  When reading from a
+`BitSlice<BitSafeU8>` to a `BitSlice<u8>`, we can use `split_at_unchecked_mut`
+again to transform the _dest_ from a `BitSlice<u8>` to a `BitSlice<BitSafeU8>`.
+This subtle difference in the source vs dest transformation is why we need two
+traits.
+
+Another required piece for this to work is to seal our wrapper of the
+`BitStore` trait so that the compiler knows there are only two possible
+implementations (`u8` and `BitSafeU8`), that way we can take a generic bounded
+by the `BitStore` trait (`<O: BitStore>`) and call `O::copy_to_slice` and
+`O::copy_from_slice` after providing implementations of `CopyFromBitSlice` and
+`CopyToBitSlice` for both `u8` and `BitSafeU8` because that then covers all
+possible values of `O`.

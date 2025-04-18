@@ -1,5 +1,3 @@
-use std::borrow::Borrow;
-
 use bitvec::order::Msb0;
 use bitvec::view::BitView;
 
@@ -21,12 +19,19 @@ pub trait BitBufMutExts: BitBufMut {
     }
 
     // TODO: BytesMut converts everything to a slice and then just does put_slice, so it'd be nice
-    // to do the same.  For that here, I think we'd convert the value into the inner type, then
-    // convert that to bigendian or littleendian bytes, then convert that to a bitslice and then
-    // call put_slice on that
+    // to do the same.  The issue is that the uX types don't convert cleanly into the BitSlice<u8,
+    // Msb0> semantics: a u1 is in a u8, but the subset of those bits are in Msb0 order but shifted
+    // to the "right" side of the value's storage.  It doesn't work to just treat it as Lsb0 order,
+    // because then the relevant bits would be reversed: what we need to do is shift the bits to
+    // the left.  Or, we could slice off the 'end' of the value where the bits are --> this works
+    //
+    // But do we still have an issue for values larger than a byte?  does the above process work
+    // with endian-ness?  Can we convert the inner-storage value to le/be bytes and then bitslice
+    // it?
+    //
+    //
 
-    fn put_fixed2(&mut self, value: &[u8]) -> std::io::Result<()> {
-        let slice = value.view_bits::<Msb0>();
+    fn put_fixed2(&mut self, slice: &BitSlice) -> std::io::Result<()> {
         self.put_slice(slice);
         Ok(())
     }
@@ -36,9 +41,11 @@ pub trait BitBufMutExts: BitBufMut {
     }
 
     fn put_u1(&mut self, value: u1) -> std::io::Result<()> {
-        let x: u8 = value.into();
-        self.put_fixed2(&[x])
-        // self.put_fixed::<1, _>(value)
+        // TODO: this doesn't work, as this will left-pad a single bit value into 8 bits so it'll
+        // get written as 0b00000001 instead of 0b1
+        let value: u8 = value.into();
+        let bits = &value.view_bits()[7..];
+        self.put_fixed2(bits)
     }
 
     fn put_u2(&mut self, value: u2) -> std::io::Result<()> {
@@ -163,11 +170,12 @@ impl<T: BitBufMut + ?Sized> BitBufMutExts for T {}
 mod tests {
     use crate::prelude::*;
 
+    // TODO: this test is crashing!
     #[test]
     fn test_put_and_get_u1() {
         let mut bits_mut = BitsMut::new();
         bits_mut.put_u1(u1::new(1)).unwrap();
-        println!("{:?}", &bits_mut[..]);
+        println!("slice after writing one bit: {:?}", &bits_mut[..]);
         let mut bits = Bits::from(&bits_mut[..]);
         let val = bits.get_u1().unwrap();
         assert_eq!(val, u1::new(1));

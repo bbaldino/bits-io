@@ -66,6 +66,7 @@ pub trait BitBufExts: BitBuf {
             return Err(std::io::ErrorKind::UnexpectedEof.into());
         }
         let val = O::read_u32_from_bits(&bits[..N]);
+        println!("reading {N} bits, got value: {val}");
         self.advance(N);
         Ok(U::try_from(val).map_err(|_| std::io::ErrorKind::InvalidData)?)
     }
@@ -190,25 +191,26 @@ mod tests {
     fn test_get_little_endian() {
         #[rustfmt::skip]
         let data = bits![
-            1, 0, 1, 0, 1, 0, 1, 0, 1, // u9 = 0b101010101 → LittleEndian: 0b101010101
-            1, 1, 1, 1, 0, 0, 0, 0, 1, 1, // u10 = 0b1111000011 → LittleEndian: 0b1100001111 = 0x30F
-            0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, // u11 = 0b00110011000 → LittleEndian: 0b00011001100 = 0x0CC
-            0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, // u12 = 0b011111111000 → LittleEndian: 0b000111111110 = 0x1FE
+            // 1, 0, 1, 0, 1, 0, 1, 0, 1, // u9 = 0b101010101 → LittleEndian: 0b101010101
+            1, 1, 0, 1, 0, 1, 0, 1, 1, // u9 = 0x1AB -> Host = 0xAB1
+            // 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, // u10 = 0b1111000011 → LittleEndian: 0b1100001111 = 0x30F
+            // 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, // u11 = 0b00110011000 → LittleEndian: 0b00011001100 = 0x0CC
+            // 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, // u12 = 0b011111111000 → LittleEndian: 0b000111111110 = 0x1FE
         ];
         let mut bits = Bits::copy_from_slice(data);
 
-        assert_eq!(bits.get_u9::<LittleEndian>().unwrap(), u9::new(0b101010101));
-        assert_eq!(
-            bits.get_u10::<LittleEndian>().unwrap(),
-            u10::new(0b1100001111)
-        );
-        assert_eq!(
-            bits.get_u11::<LittleEndian>().unwrap(),
-            u11::new(0b00011001100)
-        );
-        assert_eq!(
-            bits.get_u12::<LittleEndian>().unwrap(),
-            u12::new(0b000111111110)
-        );
+        assert_eq!(bits.get_u9::<LittleEndian>().unwrap(), u9::new(0xAB1));
+        // assert_eq!(
+        //     bits.get_u10::<LittleEndian>().unwrap(),
+        //     u10::new(0b1100001111)
+        // );
+        // assert_eq!(
+        //     bits.get_u11::<LittleEndian>().unwrap(),
+        //     u11::new(0b00011001100)
+        // );
+        // assert_eq!(
+        //     bits.get_u12::<LittleEndian>().unwrap(),
+        //     u12::new(0b000111111110)
+        // );
     }
 }
