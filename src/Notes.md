@@ -150,3 +150,11 @@ by the `BitStore` trait (`<O: BitStore>`) and call `O::copy_to_slice` and
 `O::copy_from_slice` after providing implementations of `CopyFromBitSlice` and
 `CopyToBitSlice` for both `u8` and `BitSafeU8` because that then covers all
 possible values of `O`.
+
+--> I later found out that bitvec has store_{be|le} and load_{be|le} methods
+that take care of all this logic.  They do have the caveat that little-endian
+operations don't work well when the slice isn't aligned with the underlying
+storage.  I _think_ this might be a bug and filed [this
+issue](https://github.com/ferrilab/bitvec/issues/294).  For now will deal with
+it as I don't think it'll be a common case for stuff I'm working on, but would
+be nice if it worked as expected (though for all I know it could be by-design).

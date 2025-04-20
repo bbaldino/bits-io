@@ -15,4 +15,24 @@ pub trait BitBuf {
     /// Returns a slice starting at the current position and of length between 0 and
     /// `BitBuf::remaining`.  Note that this _can_ return a shorter slice.
     fn chunk(&self) -> &BitSlice;
+
+    fn copy_to_slice(&mut self, mut dest: &mut BitSlice) {
+        if self.remaining() < dest.len() {
+            panic!(
+                "Remaining bits ({}) are less than the size of dest ({})",
+                self.remaining(),
+                dest.len()
+            );
+        }
+
+        while !dest.is_empty() {
+            let src = self.chunk();
+            let count = usize::min(src.len(), dest.len());
+            dest[..count].copy_from_bitslice(&src[..count]);
+
+            dest = &mut dest[count..];
+
+            self.advance(count);
+        }
+    }
 }

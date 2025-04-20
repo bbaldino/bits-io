@@ -33,15 +33,16 @@ impl BitBuf for BitsMut {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     #[test]
-//     fn test_bit_buf_advance() {
-//         let mut bits = Bits::copy_from_slice(bits![1, 1, 1, 1, 0, 0, 0, 0]);
-//
-//         bits.advance(4);
-//         assert_eq!(bits.chunk(), bits![0, 0, 0, 0]);
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bit_buf_advance() {
+        let mut bits = Bits::copy_from_slice(bits![1, 1, 1, 1, 0, 0, 0, 0]);
+
+        bits.advance(4);
+        assert_eq!(bits.len(), 4);
+        assert_eq!(bits.chunk(), bits![0, 0, 0, 0]);
+    }
+}

@@ -11,3 +11,4 @@ license = "Apache-2.0/MIT"
 nsw-types = { version = "0.1.11", features = ["num-traits", "std"] }
 bitvec = "1.0.1"
 bytes = { version = "1.10.1", path = "../bytes" }
+funty = "2.0.0"
