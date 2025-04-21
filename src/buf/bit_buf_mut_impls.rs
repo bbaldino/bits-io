@@ -20,7 +20,7 @@ impl BitBufMut for BitsMut {
 
     fn advance_mut(&mut self, cnt: usize) {
         assert!(cnt <= self.remaining_mut(), "advance_mut past end");
-        let current_byte_len = self.bit_len / 8;
+        let current_byte_len = bytes_needed(self.bit_len);
         self.bit_len += cnt;
         let new_byte_len = bytes_needed(self.bit_len);
         // Every time we cross into a new byte, we need to advance the underlying instance's

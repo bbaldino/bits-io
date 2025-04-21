@@ -16,6 +16,10 @@ pub trait BitBuf {
     /// `BitBuf::remaining`.  Note that this _can_ return a shorter slice.
     fn chunk(&self) -> &BitSlice;
 
+    /// Copy bits from `self` into `dest`.
+    ///
+    /// The cursor is advanced by the number of bits copied.  `self` must have enough remaining
+    /// bits to fill `dest`.
     fn copy_to_slice(&mut self, mut dest: &mut BitSlice) {
         if self.remaining() < dest.len() {
             panic!(

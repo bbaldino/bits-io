@@ -41,6 +41,9 @@ pub trait BitBufMut {
     /// allocation failure.
     fn remaining_mut_bytes(&self) -> usize;
 
+    /// Transfer bits into `self` from `src` and advance the cursor by the number of bits written.
+    ///
+    /// `self` must have enough remaining capacity to contain all of `src`.
     fn put_slice(&mut self, mut src: &BitSlice) {
         println!("BRIAN: putting slice: {src:?}");
         if self.remaining_mut() < src.len() {
@@ -60,6 +63,7 @@ pub trait BitBufMut {
             dest[..count].copy_from_bitslice(&src[..count]);
             src = &src[count..];
 
+            println!("BitBufMut::put_slice advancing mut by {count}");
             self.advance_mut(count);
         }
     }
