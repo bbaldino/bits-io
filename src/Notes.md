@@ -158,3 +158,50 @@ storage.  I _think_ this might be a bug and filed [this
 issue](https://github.com/ferrilab/bitvec/issues/294).  For now will deal with
 it as I don't think it'll be a common case for stuff I'm working on, but would
 be nice if it worked as expected (though for all I know it could be by-design).
+
+I ran into another case where I was going to need to handle this again and I
+finally stumbled across `clone_from_bitslice` which works when BitStore's
+differ: when they're the same it uses `copy_from_bitslice` and when it can't it
+goes through and copies on its on (what i was doing manually).
+
+Yet another case this came up was in the BitWrite impl for &mut BitSlice.  I
+noticed that the std::io::Write impl for &mut [T] had the reference update
+itself to reflect the written bytes, but my impl  for BitWrite didn't.  I
+looked at the std::io::Write impl and it leveraged split_at_mut so I tried to
+do the same, but then I ran into the aliasing problem again:
+
+when the type was &mut BitSlice<u8>, calling split_a_mut gave me a &mut
+BitSlice<BitSafeU8>, so I couldn't re-assign that to self.  bitvec has quite a
+few ways to unalias a type's storage when you know it's safe (there's
+BitSlice::unalias_mut and BitSlice::split_at_unchecked_mut_noalias which really
+would've been ideal) but none are public.  I also tried a more manual casting
+approach:
+
+```rust
+/// SAFETY:
+/// - `bits` must have originated from a `BitSlice<u8, Msb0>`
+/// - `bits` must be disjoint from any other active reference
+// Note: this almost worked, but BitSpan isn't public at all.
+pub unsafe fn strip_aliasing_u8<'a>(bits: &mut BitSlice<BitSafeU8>) -> &'a mut BitSlice<u8> {
+    let bitptr = bits.as_mut_bitptr(); // BitPtr<Mut, BitSafeU8, Msb0>
+    let len = bits.len();
+
+    // Get the underlying storage pointer and bit offset
+    let (raw, bit_offset) = bitptr.raw_parts();
+
+    // Cast the raw element pointer from BitSafeU8 to u8
+    let unaliased_raw = raw.cast::<u8>();
+
+    // SAFETY: caller guarantees this was originally BitSlice<u8, Msb0>
+    let ptr_u8 = BitPtr::<_, u8, Msb0>::new_unchecked(unaliased_raw, bit_offset);
+
+    // SAFETY: BitSpan::new_unchecked is equivalent to reconstructing a bitslice view
+    let span = BitSpan::new_unchecked(ptr_u8, len);
+
+    BitSlice::from_bitptr_mut(ptr_u8, len)
+}
+```
+
+but `BitSpan` isn't public at all.  Finally I just tried doing the impl without
+`split_at_mut` and just writing to self directly and that seems to work, so
+will go with that for now.
