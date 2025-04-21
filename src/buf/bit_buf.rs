@@ -12,9 +12,18 @@ pub trait BitBuf {
     /// This value is greater than or equal to the length of the slice returned by `chunk`.
     fn remaining(&self) -> usize;
 
-    /// Returns a slice starting at the current position and of length between 0 and
+    ///  Return the number of _full_ bytes between the current position and the end of the buffer.
+    fn remaining_bytes(&self) -> usize {
+        self.remaining() / 8
+    }
+
+    /// Returns a [`BitSlice`] starting at the current position and of length between 0 and
     /// `BitBuf::remaining`.  Note that this _can_ return a shorter slice.
     fn chunk(&self) -> &BitSlice;
+
+    /// Returns a slice of bytes starting at the current position and of length between 0 and
+    /// `BitBuf::remaining_bytes`.  Note that this _can_ return a shorter slice.
+    fn chunk_bytes(&self) -> &[u8];
 
     /// Copy bits from `self` into `dest`.
     ///
@@ -39,4 +48,6 @@ pub trait BitBuf {
             self.advance(count);
         }
     }
+
+    fn copy_to_slice_bytes(&mut self, dest: &mut [u8]);
 }

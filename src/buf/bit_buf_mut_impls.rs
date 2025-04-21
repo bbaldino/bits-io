@@ -4,6 +4,10 @@ use super::{bit_buf_mut::BitBufMut, bits_mut::BitsMut};
 use crate::{buf::util::bytes_needed, prelude::*};
 
 impl BitBufMut for BitsMut {
+    // TODO: I think it's wrong to use the remaining bytes as the source of truth and base bits off
+    // of that: calls like reserve() are in bits and, even though we need to round up wen reserving
+    // the underlying bytes, the caller may not have requested all of that final byte as reserved.
+    // we should change remaining_mut_bytes to be based off reamining_mut (in bits)
     fn remaining_mut_bytes(&self) -> usize {
         self.inner.remaining_mut()
     }

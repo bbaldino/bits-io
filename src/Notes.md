@@ -205,3 +205,18 @@ pub unsafe fn strip_aliasing_u8<'a>(bits: &mut BitSlice<BitSafeU8>) -> &'a mut B
 but `BitSpan` isn't public at all.  Finally I just tried doing the impl without
 `split_at_mut` and just writing to self directly and that seems to work, so
 will go with that for now.
+
+## Byte slice operations
+
+There are a couple byte slice operations that it would be nice to enable, but
+they'd only make sense if the current position is on a byte boundary.  Things
+like chunk_bytes, chunk_mut_bytes, or even ways to hander out 'reader' or
+'writer' instances like Buf/BufMut do.  I'm thinking we could add a
+'byte_aligned' method that would allow the caller to confirm they're on a
+byte-aligned boundary.  Then the methods that had things out can assert that
+it's the case before returning the value.
+
+Note that I think for at least some operations we'd need to require both the
+start _and_ end are byte-aligned. Maybe if there's something that we knew
+wasn't going all the way to the end it'd be ok if the end wasn't...but might be
+best to ensure it anyway.
