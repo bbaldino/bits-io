@@ -69,7 +69,6 @@ mod tests {
         let value = 0xABCDu16;
         let value_bytes = value.to_be_bytes();
         let src = BitSlice::from_slice(&value_bytes);
-        println!("be bits: {src:X?}");
         let read_value: u16 = BigEndian::load(src);
         assert_eq!(value, read_value);
     }

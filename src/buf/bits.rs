@@ -243,8 +243,6 @@ mod tests {
 
         // Now make sure a slice that came from a non-byte boundary still works
         let unaligned_slice = &slice[2..];
-        println!("{unaligned_slice:?}");
-        println!("{:?}", unaligned_slice.to_bitvec());
         let bits = Bits::from(unaligned_slice);
         assert_eq!(bits.len(), 4);
         assert_eq!(bits[..], bits![0, 1, 1, 0]);

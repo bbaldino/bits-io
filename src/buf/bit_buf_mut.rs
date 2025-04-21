@@ -45,7 +45,6 @@ pub trait BitBufMut {
     ///
     /// `self` must have enough remaining capacity to contain all of `src`.
     fn put_slice(&mut self, mut src: &BitSlice) {
-        println!("BRIAN: putting slice: {src:?}");
         if self.remaining_mut() < src.len() {
             panic!(
                 "Not enough room to put slice of size (needed {}, have {}",
@@ -54,16 +53,12 @@ pub trait BitBufMut {
             );
         }
         while !src.is_empty() {
-            println!("BRIAN: getting chunk_mut, src.len() = {}", src.len());
             let dest = self.chunk_mut();
-            println!("BRIAN: got chunk_mut");
             let count = usize::min(src.len(), dest.len());
-            println!("reading {count} bits");
 
             dest[..count].copy_from_bitslice(&src[..count]);
             src = &src[count..];
 
-            println!("BitBufMut::put_slice advancing mut by {count}");
             self.advance_mut(count);
         }
     }

@@ -156,16 +156,13 @@ impl BitsMut {
     pub fn reserve(&mut self, additional: usize) {
         let len = self.len();
         let remainder = self.capacity - len;
-        println!("reserving {additional} bits, have {remainder} remaining");
 
         if additional <= remainder {
             return;
         }
         let bytes_needed = bytes_needed(additional);
-        println!("reserving {bytes_needed} additional bytes in inner storage");
         self.inner.reserve(bytes_needed);
         self.capacity = self.inner.capacity() * 8;
-        println!("self.capacity is now {}", self.capacity);
     }
 
     /// Splits the buffer into two at the given index.
@@ -315,22 +312,12 @@ impl Deref for BitsMut {
     type Target = BitSlice;
 
     fn deref(&self) -> &Self::Target {
-        println!(
-            "trying to deref BitsMut into a BitSlice, grabbing slice from inner from {} to {}",
-            self.bit_start,
-            self.bit_start + self.bit_len
-        );
         &BitSlice::from_slice(&self.inner)[self.bit_start..self.bit_start + self.bit_len]
     }
 }
 
 impl DerefMut for BitsMut {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        println!(
-            "trying to derefmut BitsMut into a BitSlice, grabbing slice from inner from {} to {}",
-            self.bit_start,
-            self.bit_start + self.bit_len
-        );
         &mut BitSlice::from_slice_mut(&mut self.inner)
             [self.bit_start..self.bit_start + self.bit_len]
     }
