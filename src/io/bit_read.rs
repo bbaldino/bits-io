@@ -2,18 +2,21 @@ use crate::prelude::*;
 
 /// The BitRead trait allows for reading bits from a source.
 pub trait BitRead: std::io::Read {
-    /// Pull some bits from this source into the specified buffer, returning how many bytes were read.
-    fn read_bits(&mut self, dest: &mut BitSlice) -> std::io::Result<usize>;
+    /// Pull some bits from this source into the specified buffer, returning how many bits were
+    /// read.
+    fn read_bits<O: BitStore>(&mut self, dest: &mut BitSlice<O>) -> std::io::Result<usize>;
 
     /// Read the exact number of bits required to fill buf.
-    fn read_bits_exact(&mut self, dest: &mut BitSlice) -> std::io::Result<()> {
+    fn read_bits_exact<O: BitStore>(&mut self, dest: &mut BitSlice<O>) -> std::io::Result<()> {
+        // TODO: double-check this impl
         read_bits_exact_helper(self, dest)
     }
 }
 
-fn read_bits_exact_helper<R: BitRead + ?Sized>(
+// TODO: do we need this helper?
+fn read_bits_exact_helper<R: BitRead + ?Sized, O: BitStore>(
     this: &mut R,
-    mut dest: &mut BitSlice,
+    mut dest: &mut BitSlice<O>,
 ) -> std::io::Result<()> {
     while !dest.is_empty() {
         // Note: unlike std::io::Read, we don't have a special case for an 'interrupted'
