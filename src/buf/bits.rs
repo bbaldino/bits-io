@@ -22,11 +22,34 @@ pub struct Bits {
 }
 
 impl Bits {
-    /// Creates a new empty [`Bits`]
+    /// Creates a new empty [`Bits`] from an instance of [`Bytes`]
     pub fn from_bytes(bytes: Bytes) -> Self {
         let bit_len = bytes.len() * 8;
         Self {
             inner: bytes,
+            bit_start: 0,
+            bit_len,
+        }
+    }
+
+    pub fn from_static_bytes(bytes: &'static [u8]) -> Self {
+        let inner = Bytes::from_static(bytes);
+        let bit_len = inner.len() * 8;
+        Self {
+            inner,
+            bit_start: 0,
+            bit_len,
+        }
+    }
+
+    pub fn from_owner_bytes<T>(owner: T) -> Self
+    where
+        T: AsRef<[u8]> + Send + 'static,
+    {
+        let inner = Bytes::from_owner(owner);
+        let bit_len = inner.len() * 8;
+        Self {
+            inner,
             bit_start: 0,
             bit_len,
         }
