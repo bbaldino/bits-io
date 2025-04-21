@@ -1,8 +1,14 @@
+use bitvec::field::BitField;
+use funty::Integral;
+
 use crate::prelude::*;
 
+/// This trait defines operations to load and store integral values from a buffer, and enables
+/// implementing them in different ways for the different byte orders (Big Endian and Little
+/// Endian).
 pub trait ByteOrder {
-    fn write_u32_to_bits<O: BitStore>(bits: &mut BitSlice<O>, value: u32);
-    fn read_u32_from_bits<O: BitStore>(bits: &BitSlice<O>) -> u32;
+    fn load<O: BitStore, U: Integral>(src: &BitSlice<O>) -> U;
+    fn store<O: BitStore, U: Integral>(dest: &mut BitSlice<O>, value: U);
 }
 
 pub struct BigEndian {}
@@ -12,120 +18,88 @@ pub struct LittleEndian {}
 pub type NetworkOrder = BigEndian;
 
 impl ByteOrder for BigEndian {
-    fn write_u32_to_bits<O: BitStore>(bits: &mut BitSlice<O>, value: u32) {
-        let n = bits.len();
-        assert!(n <= 32, "cannot write more than 32 bits");
-
-        for i in 0..n {
-            // Extract bit starting from MSB
-            let bit = (value >> (n - 1 - i)) & 1;
-            bits.set(i, bit != 0);
-        }
+    fn load<O: BitStore, U: Integral>(src: &BitSlice<O>) -> U {
+        src.load_be()
     }
 
-    fn read_u32_from_bits<O: BitStore>(bits: &BitSlice<O>) -> u32 {
-        let n = bits.len();
-        assert!(n <= 32, "cannot read more than 32 bits into a u32");
-
-        bits.iter()
-            .fold(0u32, |acc, bit| (acc << 1) | (*bit as u32))
+    fn store<O: BitStore, U: Integral>(dest: &mut BitSlice<O>, value: U) {
+        dest.store_be(value);
     }
 }
 
 impl ByteOrder for LittleEndian {
-    fn write_u32_to_bits<O: BitStore>(bits: &mut BitSlice<O>, value: u32) {
-        let n = bits.len();
-        assert!(n <= 32, "cannot write more than 32 bits");
-
-        for i in 0..n {
-            // Extract bit starting from LSB
-            let bit = (value >> i) & 1;
-            bits.set(i, bit != 0);
-        }
+    fn load<O: BitStore, U: Integral>(src: &BitSlice<O>) -> U {
+        src.load_le()
     }
 
-    fn read_u32_from_bits<O: BitStore>(bits: &BitSlice<O>) -> u32 {
-        let n = bits.len();
-        assert!(n <= 32, "cannot read more than 32 bits into a u32");
-
-        bits.iter()
-            .rev()
-            .fold(0u32, |acc, bit| (acc << 1) | (*bit as u32))
+    fn store<O: BitStore, U: Integral>(dest: &mut BitSlice<O>, value: U) {
+        dest.store_le(value)
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::buf::bit_buf_exts::BitBufExts;
-//
-//     #[test]
-//     fn test_big_endian_read_write() {
-//         let test_cases = [
-//             (0b1, 1),
-//             (0b10, 2),
-//             (0b10101010, 8),
-//             (0b1010101010101010, 16),
-//             (0xDEADBEEF, 32),
-//         ];
-//
-//         for &(value, bits) in &test_cases {
-//             let mut cursor = BitCursor::new(vec![0u8; 8]);
-//
-//             // if bits <= 8 {
-//             //     cursor.write_u8(value as u8).unwrap();
-//             // } else if bits <= 16 {
-//             //     cursor.write_u16::<BigEndian>(value as u16).unwrap();
-//             // } else {
-//             //     cursor.write_u32::<BigEndian>(value as u32).unwrap();
-//             // }
-//
-//             cursor.set_position(0);
-//
-//             let read_value = if bits <= 8 {
-//                 cursor.get_u8().unwrap() as u64
-//             } else if bits <= 16 {
-//                 cursor.get_u16::<BigEndian>().unwrap() as u64
-//             } else {
-//                 cursor.get_u32::<BigEndian>().unwrap() as u64
-//             };
-//
-//             assert_eq!(value, read_value, "BigEndian failed for {} bits", bits);
-//         }
-//     }
-//
-//     #[test]
-//     fn test_little_endian_read_write() {
-//         let test_cases = [
-//             (0b1, 1),
-//             (0b10, 2),
-//             (0b10101010, 8),
-//             (0b1010101010101010, 16),
-//             (0xDEADBEEF, 32),
-//         ];
-//
-//         for &(value, bits) in &test_cases {
-//             let mut cursor = BitCursor::new(vec![0u8; 8]);
-//
-//             if bits <= 8 {
-//                 cursor.write_u8(value as u8).unwrap();
-//             } else if bits <= 16 {
-//                 cursor.write_u16::<LittleEndian>(value as u16).unwrap();
-//             } else {
-//                 cursor.write_u32::<LittleEndian>(value as u32).unwrap();
-//             }
-//
-//             cursor.set_position(0);
-//
-//             let read_value = if bits <= 8 {
-//                 cursor.read_u8().unwrap() as u64
-//             } else if bits <= 16 {
-//                 cursor.read_u16::<LittleEndian>().unwrap() as u64
-//             } else {
-//                 cursor.read_u32::<LittleEndian>().unwrap() as u64
-//             };
-//
-//             assert_eq!(value, read_value, "LittleEndian failed for {} bits", bits);
-//         }
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // TODO: more test cases here (different data sizes)
+
+    #[test]
+    fn test_big_endian_write() {
+        let mut buf = [0u8; 2];
+        {
+            // Simulate writing 4 bits
+            let dest = &mut BitSlice::from_slice_mut(&mut buf);
+            BigEndian::store(&mut dest[..16], 0xABCDu16);
+            let value = u16::from_be_bytes(buf);
+            assert_eq!(value, 0xABCD);
+        }
+
+        // Now test that writing into a BitSlice<BitSafeU8> also works.
+        {
+            let dest = BitSlice::from_slice_mut(&mut buf);
+            let (_, dest) = unsafe { dest.split_at_unchecked_mut(0) };
+            BigEndian::store(&mut dest[..16], 0xABCDu16);
+            let value = u16::from_be_bytes(buf);
+            assert_eq!(value, 0xABCD);
+        }
+    }
+
+    #[test]
+    fn test_big_endian_read() {
+        let value = 0xABCDu16;
+        let value_bytes = value.to_be_bytes();
+        let src = BitSlice::from_slice(&value_bytes);
+        let read_value: u16 = BigEndian::load(src);
+        assert_eq!(value, read_value);
+    }
+
+    #[test]
+    fn test_little_endian_write() {
+        let mut buf = [0u8; 2];
+        {
+            // Simulate writing 4 bits
+            let dest = &mut BitSlice::from_slice_mut(&mut buf);
+            LittleEndian::store(&mut dest[..16], 0xABCDu16);
+            let value = u16::from_le_bytes(buf);
+            assert_eq!(value, 0xABCD);
+        }
+
+        // Now test that writing into a BitSlice<BitSafeU8> also works.
+        {
+            let dest = BitSlice::from_slice_mut(&mut buf);
+            let (_, dest) = unsafe { dest.split_at_unchecked_mut(0) };
+            LittleEndian::store(&mut dest[..16], 0xABCDu16);
+            let value = u16::from_le_bytes(buf);
+            assert_eq!(value, 0xABCD);
+        }
+    }
+
+    #[test]
+    fn test_little_endian_read() {
+        let value = 0xABCDu16;
+        let value_bytes = value.to_le_bytes();
+        let src = BitSlice::from_slice(&value_bytes);
+        let read_value: u16 = LittleEndian::load(src);
+        assert_eq!(value, read_value);
+    }
+}

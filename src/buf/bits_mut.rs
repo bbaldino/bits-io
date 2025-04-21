@@ -8,13 +8,13 @@ use super::util::bytes_needed;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BitsMut {
-    inner: BytesMut,
+    pub(crate) inner: BytesMut,
     /// The start of this instance's view of the underlying storage
-    bit_start: usize,
+    pub(crate) bit_start: usize,
     /// How many bits, from bit_start, are part of this view
-    bit_len: usize,
+    pub(crate) bit_len: usize,
     /// This view's capacity
-    capacity: usize,
+    pub(crate) capacity: usize,
 }
 
 impl BitsMut {
@@ -75,10 +75,94 @@ impl BitsMut {
 
     /// Creates a new `BitsMut` containing `len` _bytes_ of zeros.
     ///
-    /// The resulting object has a length of `len` * 8 and a capacity greater than or equal to `len` * 8.
-    /// The entire length of the object will be filled with zeros.
+    /// The resulting object has a length of `len` * 8 and a capacity greater than or equal to `len`
+    /// * 8. The entire length of the object will be filled with zeros.
     pub fn zeroed_bytes(len: usize) -> Self {
         Self::zeroed(len * 8)
+    }
+
+    /// Converts self into an immutable [`Bits`].
+    /// The conversion is zero cost and is used to indicate that the slice referenced by the handle
+    /// will no longer be mutated. Once the conversion is done, the handle can be cloned and shared
+    /// across threads.
+    pub fn freeze(self) -> Bits {
+        Bits {
+            inner: self.inner.freeze(),
+            bit_start: self.bit_start,
+            bit_len: self.bit_len,
+        }
+    }
+
+    /// Appends given bytes to this BytesMut.
+    ///
+    /// If this `BitsMut` object does not have enough capacity, it is resized first.
+    pub fn extend_from_slice(&mut self, slice: &BitSlice) {
+        let count = slice.len();
+        self.reserve(count);
+
+        let dest = self.spare_capacity_mut();
+        assert!(dest.len() >= count);
+        dest[..count].copy_from_bitslice(slice);
+
+        self.advance_mut(count);
+    }
+
+    /// Returns the remaining spare capacity of the buffer as a `&mut BitSlice`.
+    ///
+    /// The returned slice can be used to fill the buffer with data (e.g. by reading from a file)
+    /// before marking the data as initialized using the set_len method.
+    ///
+    /// Note that the returned slice is *uninitialized*, meaning it may contain random data.  Every
+    /// bit must be explicitly written to avoid the data containing pre-existing values.
+    pub fn spare_capacity_mut(&mut self) -> &mut BitSlice {
+        // If the last "in-use" bit is not on a byte boundary, then `self.inner.spare_capacity_mut`
+        // will start in the _next_ byte compared to what we actually want, so we can't rely on
+        // `self.inner.spare_capacity_mut` along to get us the right slice.
+
+        // The index of the first unused bit, relative to the start of the view
+        let bit_start = self.bit_start + self.bit_len;
+
+        // Get the MaybeUninit<u8> spare region
+        let spare_uninit = self.inner.spare_capacity_mut();
+
+        // Check the alignment of the first-unused-bit index.  If it's byte-aligned, then the slice
+        // we got back from spare_capacity_mut will work as-is.  If it's not, we'll need to
+        // decrement it by one byte so that the slice we return starts at the first unused bit.
+        let (ptr, len) = if bit_start % 8 == 0 {
+            (spare_uninit.as_mut_ptr() as *mut u8, spare_uninit.len())
+        } else {
+            let ptr = unsafe { spare_uninit.as_mut_ptr().offset(-1) as *mut u8 };
+            // Need to add one to the length here to accommodate the byte we "added"
+            (ptr, spare_uninit.len() + 1)
+        };
+
+        let spare_bytes: &mut [u8] = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
+
+        // Create the bitslice from the correct range
+        &mut BitSlice::from_slice_mut(spare_bytes)[bit_start % 8..]
+    }
+
+    /// Sets the length of the buffer in bits.
+    ///
+    /// This will explicitly set the size of the buffer without actually modifying the data, so it
+    /// is up to the caller to ensure that the data has been initialized.
+    pub fn set_len(&mut self, len: usize) {
+        self.bit_len = len;
+        unsafe { self.inner.set_len(bytes_needed(len)) };
+    }
+
+    /// Reserves capacity for at least additional more bits to be inserted into the given
+    /// `BitsMut`.
+    pub fn reserve(&mut self, additional: usize) {
+        let len = self.len();
+        let remainder = self.capacity - len;
+
+        if additional <= remainder {
+            return;
+        }
+        let bytes_needed = bytes_needed(additional);
+        self.inner.reserve(bytes_needed);
+        self.capacity = self.inner.capacity() * 8;
     }
 
     /// Splits the buffer into two at the given index.
@@ -165,10 +249,6 @@ impl BitsMut {
     }
 
     /// Advance the buffer by `count` bits without bounds checking
-    ///
-    /// # SAFETY
-    ///
-    /// The caller must ensure that `count` <= `self.capacity`.
     fn advance_unchecked(&mut self, count: usize) {
         if count == 0 {
             return;
@@ -328,5 +408,30 @@ mod tests {
             tail[..],
             bits![1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         );
+    }
+
+    #[test]
+    fn test_spare_capacity_mut() {
+        let mut bits_mut = BitsMut::with_capacity(24);
+        let spare = bits_mut.spare_capacity_mut();
+        spare.set(0, true);
+        bits_mut.set_len(1);
+
+        let spare = bits_mut.spare_capacity_mut();
+        spare.set(0, false);
+        spare.set(1, false);
+        spare.set(2, true);
+        bits_mut.set_len(4);
+
+        assert_eq!(&bits_mut[..], bits![1, 0, 0, 1]);
+    }
+
+    #[test]
+    fn test_extend_from_slice() {
+        let mut bits_mut = BitsMut::new();
+        let data = bits![0, 1, 1, 0, 1, 1, 0];
+
+        bits_mut.extend_from_slice(data);
+        assert_eq!(&bits_mut[..], data);
     }
 }

@@ -10,7 +10,15 @@ pub use crate::{bits, bitvec};
 pub use nsw_types::*;
 
 // Core traits
-pub use crate::buf::byte_order::{BigEndian, ByteOrder, LittleEndian, NetworkOrder};
+pub use crate::buf::{
+    bit_buf::BitBuf,
+    bit_buf_exts::BitBufExts,
+    bit_buf_mut::BitBufMut,
+    bit_buf_mut_exts::BitBufMutExts,
+    bits::Bits,
+    bits_mut::BitsMut,
+    byte_order::{BigEndian, ByteOrder, LittleEndian, NetworkOrder},
+};
 pub use crate::io::bit_cursor::BitCursor;
 pub use crate::io::bit_read::BitRead;
 pub use crate::io::bit_seek::BitSeek;

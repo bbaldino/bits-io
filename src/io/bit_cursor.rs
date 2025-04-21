@@ -61,7 +61,13 @@ where
     T: BorrowBitsMut,
 {
     /// Splits the underlying slice at the cursor position and returns each half mutably
-    pub fn split_mut(&mut self) -> (&mut BitSlice<impl BitStore>, &mut BitSlice<impl BitStore>) {
+    /// TODO: should we be re-exporting BitSafeU8 in some other way?
+    pub fn split_mut(
+        &mut self,
+    ) -> (
+        &mut BitSlice<bitvec::access::BitSafeU8>,
+        &mut BitSlice<bitvec::access::BitSafeU8>,
+    ) {
         let bits = self.inner.borrow_bits_mut();
         let (left, right) = bits.split_at_mut(self.pos as usize);
         (left, right)
@@ -148,7 +154,7 @@ impl<T> BitRead for BitCursor<T>
 where
     T: BorrowBits,
 {
-    fn read_bits(&mut self, dest: &mut BitSlice) -> std::io::Result<usize> {
+    fn read_bits<O: BitStore>(&mut self, dest: &mut BitSlice<O>) -> std::io::Result<usize> {
         let n = BitRead::read_bits(&mut BitCursor::split(self).1, dest)?;
         self.pos += n as u64;
         Ok(n)

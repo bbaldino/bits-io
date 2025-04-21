@@ -5,6 +5,11 @@ use bytes::{Bytes, BytesMut};
 
 use super::util::bytes_needed;
 
+// TODO: Need to determine if advancing here needs to be reflected in the underlying Bytes
+// instances.  For BitsMut it's critical, since the starting point for writing is important for
+// certain operations.  I suspect that may be the same for reading, but need to look into
+// it/verify.
+
 /// A cheaply cloneable chunk of contiugous memory, built on top of `[bytes::Bytes`] but providing
 /// bit-level operations.  
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -126,7 +131,8 @@ impl Bits {
     ///
     /// If len is greater than the buffer’s current length, this has no effect.
     ///
-    /// The split_off method can emulate truncate, but this causes the excess bits to be returned instead of dropped.
+    /// The split_off method can emulate truncate, but this causes the excess bits to be returned
+    /// instead of dropped.
     pub fn truncate(&mut self, len: usize) {
         if len < self.bit_len {
             self.bit_len = len;
@@ -137,7 +143,8 @@ impl Bits {
     ///
     /// If len is greater than the buffer’s current length, this has no effect.
     ///
-    /// The split_off method can emulate truncate, but this causes the excess bits to be returned instead of dropped.
+    /// The split_off method can emulate truncate, but this causes the excess bits to be returned
+    /// instead of dropped.
     pub fn truncate_bytes(&mut self, len: usize) {
         if len * 8 < self.bit_len {
             self.bit_len = len * 8;
@@ -236,8 +243,6 @@ mod tests {
 
         // Now make sure a slice that came from a non-byte boundary still works
         let unaligned_slice = &slice[2..];
-        println!("{unaligned_slice:?}");
-        println!("{:?}", unaligned_slice.to_bitvec());
         let bits = Bits::from(unaligned_slice);
         assert_eq!(bits.len(), 4);
         assert_eq!(bits[..], bits![0, 1, 1, 0]);
