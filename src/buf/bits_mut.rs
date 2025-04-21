@@ -111,20 +111,44 @@ impl BitsMut {
     ///
     /// The returned slice can be used to fill the buffer with data (e.g. by reading from a file)
     /// before marking the data as initialized using the set_len method.
+    ///
+    /// Note that the returned slice is *uninitialized*, meaning it may contain random data.  Every
+    /// bit must be explicitly written to avoid the data containing pre-existing values.
     pub fn spare_capacity_mut(&mut self) -> &mut BitSlice {
-        let bit_start = self.bit_start + self.bit_len;
-        let bit_len = self.capacity - self.bit_len;
+        // If the last "in-use" bit is not on a byte boundary, then `self.inner.spare_capacity_mut`
+        // will start in the _next_ byte compared to what we actually want, so we can't rely on
+        // `self.inner.spare_capacity_mut` along to get us the right slice.
 
-        println!(
-            "spare_capacity_mut, inner len: {}, inner capacity: {}",
-            self.inner.len(),
-            self.inner.capacity()
-        );
-        println!("{:?}", self.inner);
-        let uninit_slice = self.inner.spare_capacity_mut();
-        let ptr = uninit_slice.as_mut_ptr() as *mut u8;
-        let inner_spare_capacity_mut = unsafe { std::slice::from_raw_parts_mut(ptr, bit_len) };
-        &mut BitSlice::from_slice_mut(inner_spare_capacity_mut)[bit_start..bit_start + bit_len]
+        // The index of the first unused bit, relative to the start of the view
+        let bit_start = self.bit_start + self.bit_len;
+
+        // Get the MaybeUninit<u8> spare region
+        let spare_uninit = self.inner.spare_capacity_mut();
+
+        // Check the alignment of the first-unused-bit index.  If it's byte-aligned, then the slice
+        // we got back from spare_capacity_mut will work as-is.  If it's not, we'll need to
+        // decrement it by one byte so that the slice we return starts at the first unused bit.
+        let (ptr, len) = if bit_start % 8 == 0 {
+            (spare_uninit.as_mut_ptr() as *mut u8, spare_uninit.len())
+        } else {
+            let ptr = unsafe { spare_uninit.as_mut_ptr().offset(-1) as *mut u8 };
+            // Need to add one to the length here to accommodate the byte we "added"
+            (ptr, spare_uninit.len() + 1)
+        };
+
+        let spare_bytes: &mut [u8] = unsafe { std::slice::from_raw_parts_mut(ptr, len) };
+
+        // Create the bitslice from the correct range
+        &mut BitSlice::from_slice_mut(spare_bytes)[bit_start % 8..]
+    }
+
+    /// Sets the length of the buffer in bits.
+    ///
+    /// This will explicitly set the size of the buffer without actually modifying the data, so it
+    /// is up to the caller to ensure that the data has been initialized.
+    pub fn set_len(&mut self, len: usize) {
+        self.bit_len = len;
+        unsafe { self.inner.set_len(bytes_needed(len)) };
     }
 
     /// Reserves capacity for at least additional more bits to be inserted into the given
@@ -312,127 +336,115 @@ impl DerefMut for BitsMut {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//
-//     #[test]
-//     fn test_split_to() {
-//         let mut bits = BitsMut::from(bits![1, 1, 1, 1, 0, 0, 0, 0]);
-//
-//         let mut head = bits.split_to(4);
-//         head.set(0, false);
-//         head.set(1, false);
-//         assert_eq!(head[..], bits![0, 0, 1, 1]);
-//
-//         bits.set(0, true);
-//         bits.set(1, true);
-//         assert_eq!(bits[..], bits![1, 1, 0, 0]);
-//     }
-//
-//     #[test]
-//     fn test_split_to_bytes() {
-//         #[rustfmt::skip]
-//         let mut bits = BitsMut::from(vec![
-//             0b1111_1111,
-//             0b0000_0000,
-//             0b1010_1010,
-//             0b0101_0101
-//         ]);
-//
-//         let mut head = bits.split_to_bytes(1);
-//         // 'head' is now bits [0, 8), 'bits' is [8, 32)
-//         assert_eq!(head.len(), 8);
-//         assert_eq!(bits.len(), 24);
-//         head.set(0, false);
-//         head.set(1, false);
-//         head.set(2, false);
-//         head.set(3, false);
-//
-//         bits.set(0, true);
-//         bits.set(1, true);
-//         bits.set(2, true);
-//         bits.set(3, true);
-//         assert_eq!(head[..], bits![0, 0, 0, 0, 1, 1, 1, 1]);
-//         assert_eq!(
-//             bits[..],
-//             bits![1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1]
-//         );
-//         // Now split at a non-byte boundary and then do a byte-split to make sure that works
-//         // correctly
-//         let mut unaligned_split = bits.split_to(12);
-//         // 'bits' is now bits [20, 32), 'unaligned_split' is [8, 20)
-//         let mut unaligned_byte_split = unaligned_split.split_to_bytes(1);
-//         // 'unaligned_split' is now bits [16, 20), 'unaligned_byte_split' is [8, 16)
-//         assert_eq!(unaligned_byte_split.len(), 8);
-//         assert_eq!(unaligned_split.len(), 4);
-//
-//         unaligned_byte_split.set(0, false);
-//         unaligned_byte_split.set(1, false);
-//         assert_eq!(unaligned_byte_split[..], bits![0, 0, 1, 1, 0, 0, 0, 0]);
-//
-//         unaligned_split.set(0, false);
-//         unaligned_split.set(1, true);
-//         assert_eq!(unaligned_split[..], bits![0, 1, 1, 0]);
-//     }
-//
-//     #[test]
-//     fn test_split_off() {
-//         let mut bits = BitsMut::zeroed(32);
-//
-//         let mut tail = bits.split_off(12);
-//         assert_eq!(bits.len(), 12);
-//         assert_eq!(tail.len(), 20);
-//         bits.set(0, true);
-//         bits.set(1, true);
-//         bits.set(2, true);
-//         bits.set(3, true);
-//         assert_eq!(bits[..], bits![1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0]);
-//
-//         tail.set(0, true);
-//         tail.set(1, true);
-//         tail.set(2, true);
-//         tail.set(3, true);
-//         assert_eq!(
-//             tail[..],
-//             bits![1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-//         );
-//     }
-//
-//     #[test]
-//     fn test_spare_capacity_mut() {
-//         let mut bits_mut = BitsMut::with_capacity(24);
-//         let spare = bits_mut.spare_capacity_mut();
-//
-//         assert_eq!(spare.len(), 24);
-//         spare.set(0, true);
-//         spare.set(1, true);
-//         bits_mut.advance_mut(2);
-//         println!("{bits_mut:?}");
-//         assert_eq!(&bits_mut[..], bits![1, 1]);
-//     }
-//
-//     #[test]
-//     fn test_spare_capacity_mut2() {
-//         let mut bits_mut = BitsMut::with_capacity(24);
-//         let spare = bits_mut.spare_capacity_mut();
-//
-//         assert_eq!(spare.len(), 24);
-//         for i in 0..10 {
-//             spare.set(i, true);
-//         }
-//         bits_mut.advance_mut(10);
-//         println!("{bits_mut:?}");
-//         println!("{:?}", &bits_mut[..]);
-//         // assert_eq!(&bits_mut[..], bits![1, 1]);
-//     }
-//
-//     #[test]
-//     fn test_extend_from_slice() {
-//         let mut bits_mut = BitsMut::new();
-//         let data = bits![0, 1, 1, 0, 1, 1, 0];
-//
-//         bits_mut.extend_from_slice(data);
-//         assert_eq!(&bits_mut[..], data);
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_split_to() {
+        let mut bits = BitsMut::from(bits![1, 1, 1, 1, 0, 0, 0, 0]);
+
+        let mut head = bits.split_to(4);
+        head.set(0, false);
+        head.set(1, false);
+        assert_eq!(head[..], bits![0, 0, 1, 1]);
+
+        bits.set(0, true);
+        bits.set(1, true);
+        assert_eq!(bits[..], bits![1, 1, 0, 0]);
+    }
+
+    #[test]
+    fn test_split_to_bytes() {
+        #[rustfmt::skip]
+        let mut bits = BitsMut::from(vec![
+            0b1111_1111,
+            0b0000_0000,
+            0b1010_1010,
+            0b0101_0101
+        ]);
+
+        let mut head = bits.split_to_bytes(1);
+        // 'head' is now bits [0, 8), 'bits' is [8, 32)
+        assert_eq!(head.len(), 8);
+        assert_eq!(bits.len(), 24);
+        head.set(0, false);
+        head.set(1, false);
+        head.set(2, false);
+        head.set(3, false);
+
+        bits.set(0, true);
+        bits.set(1, true);
+        bits.set(2, true);
+        bits.set(3, true);
+        assert_eq!(head[..], bits![0, 0, 0, 0, 1, 1, 1, 1]);
+        assert_eq!(
+            bits[..],
+            bits![1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1]
+        );
+        // Now split at a non-byte boundary and then do a byte-split to make sure that works
+        // correctly
+        let mut unaligned_split = bits.split_to(12);
+        // 'bits' is now bits [20, 32), 'unaligned_split' is [8, 20)
+        let mut unaligned_byte_split = unaligned_split.split_to_bytes(1);
+        // 'unaligned_split' is now bits [16, 20), 'unaligned_byte_split' is [8, 16)
+        assert_eq!(unaligned_byte_split.len(), 8);
+        assert_eq!(unaligned_split.len(), 4);
+
+        unaligned_byte_split.set(0, false);
+        unaligned_byte_split.set(1, false);
+        assert_eq!(unaligned_byte_split[..], bits![0, 0, 1, 1, 0, 0, 0, 0]);
+
+        unaligned_split.set(0, false);
+        unaligned_split.set(1, true);
+        assert_eq!(unaligned_split[..], bits![0, 1, 1, 0]);
+    }
+
+    #[test]
+    fn test_split_off() {
+        let mut bits = BitsMut::zeroed(32);
+
+        let mut tail = bits.split_off(12);
+        assert_eq!(bits.len(), 12);
+        assert_eq!(tail.len(), 20);
+        bits.set(0, true);
+        bits.set(1, true);
+        bits.set(2, true);
+        bits.set(3, true);
+        assert_eq!(bits[..], bits![1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+        tail.set(0, true);
+        tail.set(1, true);
+        tail.set(2, true);
+        tail.set(3, true);
+        assert_eq!(
+            tail[..],
+            bits![1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        );
+    }
+
+    #[test]
+    fn test_spare_capacity_mut() {
+        let mut bits_mut = BitsMut::with_capacity(24);
+        let spare = bits_mut.spare_capacity_mut();
+        spare.set(0, true);
+        bits_mut.set_len(1);
+
+        let spare = bits_mut.spare_capacity_mut();
+        spare.set(0, false);
+        spare.set(1, false);
+        spare.set(2, true);
+        bits_mut.set_len(4);
+
+        assert_eq!(&bits_mut[..], bits![1, 0, 0, 1]);
+    }
+
+    #[test]
+    fn test_extend_from_slice() {
+        let mut bits_mut = BitsMut::new();
+        let data = bits![0, 1, 1, 0, 1, 1, 0];
+
+        bits_mut.extend_from_slice(data);
+        assert_eq!(&bits_mut[..], data);
+    }
+}
