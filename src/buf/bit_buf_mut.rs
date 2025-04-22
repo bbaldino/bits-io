@@ -3,11 +3,19 @@ use bytes::buf::UninitSlice;
 use crate::prelude::*;
 
 pub trait BitBufMut {
-    /// Advance the internal cursor of the BitBufMut
+    /// Advance the internal cursor of the BitBufMut by `count` bits.
     ///
-    /// The next call to chunk_mut will return a slice starting cnt bytes further into the
+    /// The next call to chunk_mut will return a slice starting `count` bits further into the
     /// underlying buffer.
     fn advance_mut(&mut self, count: usize);
+
+    /// Advance the internal cursor of the BitBufMut by `count` bytes.
+    ///
+    /// The next call to chunk_mut will return a slice starting `count` bytes further into the
+    /// underlying buffer.
+    fn advance_mut_bytes(&mut self, count: usize) {
+        self.advance_mut(count * 8);
+    }
 
     /// Returns a mutable `BitSlice` starting at the current `BitBufMut` position and of length between 0
     /// and BitBufMut::remaining_mut(). Note that this can be shorter than the whole remainder of
@@ -112,7 +120,7 @@ pub trait BitBufMut {
             dest[..count].copy_from_slice(&src[..count]);
             src = &src[count..];
 
-            self.advance_mut(count);
+            self.advance_mut_bytes(count);
         }
 
         Ok(())

@@ -29,6 +29,7 @@ pub trait BitBuf {
     ///
     /// The cursor is advanced by the number of bits copied.  `self` must have enough remaining
     /// bits to fill `dest`.
+    /// TODO: try_ version of this
     fn copy_to_slice(&mut self, mut dest: &mut BitSlice) {
         if self.remaining() < dest.len() {
             panic!(

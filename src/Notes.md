@@ -220,3 +220,10 @@ Note that I think for at least some operations we'd need to require both the
 start _and_ end are byte-aligned. Maybe if there's something that we knew
 wasn't going all the way to the end it'd be ok if the end wasn't...but might be
 best to ensure it anyway.
+
+## Tracking capacity in BitsMut
+
+At first I thought we'd need to track this separately, but now I think I'm
+realizing that we don't: it looks like it's only relevant from an allocation
+perspective and since we're deferring all of that to the underlying BytesMut
+structure, I think we can always leverage self.inner.capacity() for capacity.
