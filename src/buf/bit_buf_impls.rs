@@ -74,8 +74,7 @@ impl BitBuf for BitsMut {
     }
 
     fn chunk_bytes(&self) -> &[u8] {
-        assert!(self.bit_start % 8 == 0);
-        assert!(self.bit_len % 8 == 0);
+        assert!(self.byte_aligned());
 
         let byte_start = self.bit_start / 8;
 

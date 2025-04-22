@@ -63,7 +63,7 @@ pub trait BitBuf {
     /// boundaries).
     fn try_copy_to_slice_bytes(&mut self, dest: &mut [u8]) -> std::io::Result<()>;
 
-    /// Returns whether or not this `Buf` is fully byte-aligned (beginning and end) with the
+    /// Returns whether or not this `BitBuf` is fully byte-aligned (beginning and end) with the
     /// underlying storage.
     fn byte_aligned(&self) -> bool;
 }

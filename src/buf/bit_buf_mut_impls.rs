@@ -19,8 +19,10 @@ impl BitBufMut for BitsMut {
         self.spare_capacity_mut()
     }
 
-    // TODO: chunk_mut_bytes might be nice, but I think it could only work if we were on a byte
-    // boundary
+    fn chunk_mut_bytes(&mut self) -> &mut bytes::buf::UninitSlice {
+        assert!(self.byte_aligned_mut());
+        self.inner.chunk_mut()
+    }
 
     fn advance_mut(&mut self, cnt: usize) {
         assert!(cnt <= self.remaining_mut(), "advance_mut past end");
@@ -34,5 +36,9 @@ impl BitBufMut for BitsMut {
                 self.inner.advance_mut(new_byte_len - current_byte_len);
             }
         }
+    }
+
+    fn byte_aligned_mut(&self) -> bool {
+        self.bit_start % 8 == 0 && self.bit_len % 8 == 0
     }
 }
