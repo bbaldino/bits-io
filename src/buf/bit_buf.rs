@@ -49,5 +49,21 @@ pub trait BitBuf {
         }
     }
 
-    fn copy_to_slice_bytes(&mut self, dest: &mut [u8]);
+    /// Copy bytes from `self` into `dest`.  Call should call `byte_aligned()` beforehand to ensure
+    /// buffer is fully byte-aligned before calling, call may panic if buffer isn't byte-aligned.
+    ///
+    /// The cursor is advanced by the number of bytes copied.  `self` must have enough remaining
+    /// bytes to fill `dest`.
+    fn copy_to_slice_bytes(&mut self, dest: &mut [u8]) {
+        self.try_copy_to_slice_bytes(dest).unwrap()
+    }
+
+    /// Try to copy bytes from `self` into `dest`.  Returns error if `self` is not big enough to
+    /// fill `dest` or if self is not fully byte-aligned (start and end points both falling on byte
+    /// boundaries).
+    fn try_copy_to_slice_bytes(&mut self, dest: &mut [u8]) -> std::io::Result<()>;
+
+    /// Returns whether or not this `Buf` is fully byte-aligned (beginning and end) with the
+    /// underlying storage.
+    fn byte_aligned(&self) -> bool;
 }

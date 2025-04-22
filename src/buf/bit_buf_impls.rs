@@ -23,15 +23,22 @@ impl BitBuf for Bits {
         &self.inner[byte_start..]
     }
 
-    fn copy_to_slice_bytes(&mut self, mut dest: &mut [u8]) {
-        assert!(self.bit_start % 8 == 0);
-        assert!(self.bit_len % 8 == 0);
+    fn try_copy_to_slice_bytes(&mut self, mut dest: &mut [u8]) -> std::io::Result<()> {
+        if !self.byte_aligned() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Buf beginning and end must both be byte-aligned",
+            ));
+        }
         if self.remaining_bytes() < dest.len() {
-            panic!(
-                "Remaining bytes ({}) are less than the size of the dest ({})",
-                self.remaining_bytes(),
-                dest.len()
-            );
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                format!(
+                    "Remaining bytes ({}) are less than the size of the dest ({})",
+                    self.remaining_bytes(),
+                    dest.len()
+                ),
+            ));
         }
         while !dest.is_empty() {
             let src = self.chunk_bytes();
@@ -41,6 +48,12 @@ impl BitBuf for Bits {
 
             self.advance(count);
         }
+
+        Ok(())
+    }
+
+    fn byte_aligned(&self) -> bool {
+        self.bit_start % 8 == 0 && self.bit_len % 8 == 0
     }
 }
 
@@ -69,15 +82,22 @@ impl BitBuf for BitsMut {
         &self.inner[byte_start..]
     }
 
-    fn copy_to_slice_bytes(&mut self, mut dest: &mut [u8]) {
-        assert!(self.bit_start % 8 == 0);
-        assert!(self.bit_len % 8 == 0);
+    fn try_copy_to_slice_bytes(&mut self, mut dest: &mut [u8]) -> std::io::Result<()> {
+        if !self.byte_aligned() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Buf beginning and end must both be byte-aligned",
+            ));
+        }
         if self.remaining_bytes() < dest.len() {
-            panic!(
-                "Remaining bytes ({}) are less than the size of the dest ({})",
-                self.remaining_bytes(),
-                dest.len()
-            );
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                format!(
+                    "Remaining bytes ({}) are less than the size of the dest ({})",
+                    self.remaining_bytes(),
+                    dest.len()
+                ),
+            ));
         }
         while !dest.is_empty() {
             let src = self.chunk_bytes();
@@ -87,6 +107,12 @@ impl BitBuf for BitsMut {
 
             self.advance(count);
         }
+
+        Ok(())
+    }
+
+    fn byte_aligned(&self) -> bool {
+        self.bit_start % 8 == 0 && self.bit_len % 8 == 0
     }
 }
 
