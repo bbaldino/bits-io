@@ -227,3 +227,7 @@ At first I thought we'd need to track this separately, but now I think I'm
 realizing that we don't: it looks like it's only relevant from an allocation
 perspective and since we're deferring all of that to the underlying BytesMut
 structure, I think we can always leverage self.inner.capacity() for capacity.
+
+--> Turns out this is wrong: we need to manage a bits-level capacity because
+the bits-level 'split' operations mean that the capacity limit can occur at a
+non-byte boundary.

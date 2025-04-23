@@ -37,14 +37,20 @@ pub trait BitBuf {
     ///
     /// The cursor is advanced by the number of bits copied.  `self` must have enough remaining
     /// bits to fill `dest`.
-    /// TODO: try_ version of this
-    fn copy_to_slice(&mut self, mut dest: &mut BitSlice) {
+    fn copy_to_slice(&mut self, dest: &mut BitSlice) {
+        self.try_copy_to_slice(dest).unwrap()
+    }
+
+    fn try_copy_to_slice(&mut self, mut dest: &mut BitSlice) -> std::io::Result<()> {
         if self.remaining() < dest.len() {
-            panic!(
-                "Remaining bits ({}) are less than the size of dest ({})",
-                self.remaining(),
-                dest.len()
-            );
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                format!(
+                    "Remaining bytes ({}) are less than the size of the dest ({})",
+                    self.remaining_bytes(),
+                    dest.len()
+                ),
+            ));
         }
 
         while !dest.is_empty() {
@@ -56,6 +62,8 @@ pub trait BitBuf {
 
             self.advance(count);
         }
+
+        Ok(())
     }
 
     /// Copy bytes from `self` into `dest`.  Call should call `byte_aligned()` beforehand to ensure
@@ -70,7 +78,34 @@ pub trait BitBuf {
     /// Try to copy bytes from `self` into `dest`.  Returns error if `self` is not big enough to
     /// fill `dest` or if self is not fully byte-aligned (start and end points both falling on byte
     /// boundaries).
-    fn try_copy_to_slice_bytes(&mut self, dest: &mut [u8]) -> std::io::Result<()>;
+    fn try_copy_to_slice_bytes(&mut self, mut dest: &mut [u8]) -> std::io::Result<()> {
+        if !self.byte_aligned() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Buf beginning and end must both be byte-aligned",
+            ));
+        }
+        if self.remaining_bytes() < dest.len() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                format!(
+                    "Remaining bytes ({}) are less than the size of the dest ({})",
+                    self.remaining_bytes(),
+                    dest.len()
+                ),
+            ));
+        }
+        while !dest.is_empty() {
+            let src = self.chunk_bytes();
+            let count = usize::min(src.len(), dest.len());
+            dest[..count].copy_from_slice(&src[..count]);
+            dest = &mut dest[count..];
+
+            self.advance_bytes(count);
+        }
+
+        Ok(())
+    }
 
     /// Returns whether or not this `BitBuf` is fully byte-aligned (beginning and end) with the
     /// underlying storage.
