@@ -6,6 +6,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/bbaldino/bits-io/compare/v0.2.0...v0.3.0) - 2025-04-23
+
+### Added
+
+- add support for 'take' in BitBuf
+- add try version of copy_to_slice
+- experimenting with some byte-level operations for BitBuf.  If they work out can add matching ones to BitBufMut
+- new constructors for Bits
+
+### Fixed
+
+- add advance_bytes to BitBuf
+- use try_ versions of copy slice methods for get/put_uXX
+- fix an issue where BitsMut didn't increase capacity when chunk_mut_bytes was called
+
+### Other
+
+- add unit test for BitBuf::byte_aligned
+- add BitBuf impls for some basic types
+- add chunk_mut_bytes, try_put_slice, try_put_slice_bytes, byte_aligned_mut methods to BitBufMut
+- add try_copy_to_slice_bytes and byte_aligned methods to BitBuf
+
 ## [0.2.0](https://github.com/bbaldino/bits-io/compare/v0.1.7...v0.2.0) - 2025-04-21
 
 ### Other
