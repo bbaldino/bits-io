@@ -14,7 +14,7 @@ pub trait BitBufExts: BitBuf {
         let mut bits = BitVec::repeat(false, N);
         let slice = bits.as_mut_bitslice();
         // Copy the raw bits into the slice
-        self.copy_to_slice(slice);
+        self.try_copy_to_slice(slice)?;
         // Now 'load' the value from that slice according to the given ByteOrder.
         let value: V = O::load(slice);
 

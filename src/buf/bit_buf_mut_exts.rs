@@ -17,7 +17,7 @@ pub trait BitBufMutExts: BitBufMut {
         // E.g. u8, u16, u32.
         let value_integral: V = value.into();
         O::store(value_slice, value_integral);
-        self.put_slice(value_slice);
+        self.try_put_slice(value_slice)?;
         Ok(())
     }
 
