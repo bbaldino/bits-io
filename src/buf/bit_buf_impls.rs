@@ -161,8 +161,6 @@ impl<T: AsRef<BitSlice>> BitBuf for BitCursor<T> {
 
     fn byte_aligned(&self) -> bool {
         // TODO: helper func on BitSlice?
-        // TODO: would a slice of a single by be represented by `Region` or `Enclave`? If Enclave,
-        // we need to support that as well
         matches!(
             self.get_ref().as_ref().domain(),
             bitvec::domain::Domain::Region {
@@ -177,6 +175,24 @@ impl<T: AsRef<BitSlice>> BitBuf for BitCursor<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_byte_aligned() {
+        // Exactly one byte worth of bits
+        let bits = bits![0; 8];
+        assert!(bits.byte_aligned());
+        // Bits within one byte but not the entire byte shouldn't be considered byte-aligned
+        let bits = bits![1, 1, 1];
+        assert!(!bits.byte_aligned());
+        // 2 bytes worth of bits should be considered byte-aligned
+        let bits = bits![0; 16];
+        assert!(bits.byte_aligned());
+        // 1 byte's worth but not at the start shouldn't be considered byte-aligned
+        let bits = bits![0; 9];
+        let slice = &bits[1..];
+        assert_eq!(8, slice.len());
+        assert!(!slice.byte_aligned());
+    }
 
     #[test]
     fn test_bit_buf_bits_advance() {
