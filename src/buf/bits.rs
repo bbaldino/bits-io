@@ -273,8 +273,7 @@ mod tests {
 
     #[test]
     fn test_slice() {
-        let raw = Bytes::from_static(&[0b1010_1010, 0b1111_0000]);
-        let bits = Bits::from_bytes(raw);
+        let bits = Bits::from_static_bytes(&[0b1010_1010, 0b1111_0000]);
 
         let head = bits.slice(0..4);
         assert_eq!(head.len(), 4);
@@ -302,13 +301,12 @@ mod tests {
     #[test]
     fn test_slice_bytes() {
         #[rustfmt::skip]
-        let raw = Bytes::from_static(&[
+        let bits = Bits::from_static_bytes(&[
             0b1010_1010,
             0b1100_1100,
             0b1110_0011,
             0b1111_0000,
         ]);
-        let bits = Bits::from_bytes(raw);
 
         let head = bits.slice_bytes(0..2);
         assert_eq!(head.len(), 16);
@@ -334,8 +332,7 @@ mod tests {
 
     #[test]
     fn test_split_to() {
-        let raw = Bytes::from_static(&[0b1010_1010, 0b1111_0000]);
-        let mut bits = Bits::from_bytes(raw);
+        let mut bits = Bits::from_static_bytes(&[0b1010_1010, 0b1111_0000]);
 
         let head = bits.split_to(7);
         assert_eq!(head.len(), 7);
@@ -353,15 +350,13 @@ mod tests {
 
     #[test]
     fn test_split_to_bytes() {
-        // TODO: Add Bits::from_static/from_static_bytes creation method
         #[rustfmt::skip]
-        let raw = Bytes::from_static(&[
+        let mut bits = Bits::from_static_bytes(&[
             0b1010_1010,
             0b1100_1100,
             0b1110_0011,
             0b1111_0000,
         ]);
-        let mut bits = Bits::from_bytes(raw);
 
         let head = bits.split_to_bytes(1);
         assert_eq!(head.len(), 8);
@@ -384,8 +379,7 @@ mod tests {
 
     #[test]
     fn test_split_off() {
-        let raw = Bytes::from_static(&[0b1010_1010, 0b1111_0000]);
-        let mut bits = Bits::from_bytes(raw);
+        let mut bits = Bits::from_static_bytes(&[0b1010_1010, 0b1111_0000]);
 
         let tail = bits.split_off(7);
         assert_eq!(bits.len(), 7);
@@ -404,13 +398,12 @@ mod tests {
     #[test]
     fn test_split_off_bytes() {
         #[rustfmt::skip]
-        let raw = Bytes::from_static(&[
+        let mut bits = Bits::from_static_bytes(&[
             0b1010_1010,
             0b1100_1100,
             0b1110_0011,
             0b1111_0000,
         ]);
-        let mut bits = Bits::from_bytes(raw);
 
         let tail = bits.split_off_bytes(3);
         // 'tail' is now bits [24, 32), 'bits' is [0, 24)
@@ -440,13 +433,12 @@ mod tests {
     #[test]
     fn test_truncate() {
         #[rustfmt::skip]
-        let raw = Bytes::from_static(&[
+        let mut bits = Bits::from_static_bytes(&[
             0b1010_1010,
             0b1100_1100,
             0b1110_0011,
             0b1111_0000,
         ]);
-        let mut bits = Bits::from_bytes(raw);
 
         bits.truncate(10);
         assert_eq!(bits.len(), 10);
@@ -456,13 +448,12 @@ mod tests {
     #[test]
     fn test_truncate_bytes() {
         #[rustfmt::skip]
-        let raw = Bytes::from_static(&[
+        let mut bits = Bits::from_static_bytes(&[
             0b1010_1010,
             0b1100_1100,
             0b1110_0011,
             0b1111_0000,
         ]);
-        let mut bits = Bits::from_bytes(raw);
 
         bits.truncate_bytes(2);
         assert_eq!(bits.len(), 16);
