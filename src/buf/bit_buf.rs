@@ -7,6 +7,14 @@ pub trait BitBuf {
     /// underlying buffer.
     fn advance(&mut self, count: usize);
 
+    /// Advance the internal cursor of the `BitBuf` by `count` bytes.
+    ///
+    /// The next call to chunk() will return a slice starting count bytes further into the
+    /// underlying buffer.
+    fn advance_bytes(&mut self, count: usize) {
+        self.advance(count * 8)
+    }
+
     /// Returns the number of bits between the current position and the end of the buffer.
     ///
     /// This value is greater than or equal to the length of the slice returned by `chunk`.
