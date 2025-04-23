@@ -21,6 +21,9 @@ impl BitBufMut for BitsMut {
 
     fn chunk_mut_bytes(&mut self) -> &mut bytes::buf::UninitSlice {
         assert!(self.byte_aligned_mut());
+        if self.capacity == self.bit_len {
+            self.reserve(64);
+        }
         self.inner.chunk_mut()
     }
 
