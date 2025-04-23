@@ -2,6 +2,28 @@ use bitvec::view::BitView;
 
 use crate::prelude::*;
 
+impl<T: BitBuf + ?Sized> BitBuf for &mut T {
+    fn advance(&mut self, count: usize) {
+        (**self).advance(count);
+    }
+
+    fn remaining(&self) -> usize {
+        (**self).remaining()
+    }
+
+    fn chunk(&self) -> &BitSlice {
+        (**self).chunk()
+    }
+
+    fn chunk_bytes(&self) -> &[u8] {
+        (**self).chunk_bytes()
+    }
+
+    fn byte_aligned(&self) -> bool {
+        (**self).byte_aligned()
+    }
+}
+
 impl BitBuf for Bits {
     fn advance(&mut self, count: usize) {
         assert!(count <= self.remaining(), "advance past end of Bits");
@@ -176,6 +198,9 @@ impl<T: AsRef<BitSlice>> BitBuf for BitCursor<T> {
 mod tests {
     use super::*;
 
+    // TODO: write a set of common tests that take B: BitBuf and then run them with different
+    // types that impl BitBuf.
+
     #[test]
     fn test_byte_aligned() {
         // Exactly one byte worth of bits
@@ -258,5 +283,19 @@ mod tests {
         assert_eq!(6, bits.remaining());
         bits.advance(3);
         assert_eq!(3, bits.remaining());
+    }
+
+    #[test]
+    fn test_take() {
+        let mut bits = Bits::from_static_bytes(&[1, 2, 3, 4]);
+
+        let mut head = (&mut bits).take(16);
+        let value = head.get_u16::<NetworkOrder>().unwrap();
+        assert!(head.get_bool().is_err());
+        assert_eq!(value, 0x0102);
+        let mut tail = (&mut bits).take(16);
+        let value = tail.get_u16::<NetworkOrder>().unwrap();
+        assert!(tail.get_bool().is_err());
+        assert_eq!(value, 0x0304);
     }
 }

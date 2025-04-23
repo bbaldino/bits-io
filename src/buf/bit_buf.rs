@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+use super::bit_take::BitTake;
+
 pub trait BitBuf {
     /// Advance the internal cursor of the `BitBuf` by `count` bits.
     ///
@@ -105,6 +107,20 @@ pub trait BitBuf {
         }
 
         Ok(())
+    }
+
+    fn take(self, limit: usize) -> BitTake<Self>
+    where
+        Self: Sized,
+    {
+        BitTake::new(self, limit)
+    }
+
+    fn take_bytes(self, limit: usize) -> BitTake<Self>
+    where
+        Self: Sized,
+    {
+        BitTake::new(self, limit * 8)
     }
 
     /// Returns whether or not this `BitBuf` is fully byte-aligned (beginning and end) with the

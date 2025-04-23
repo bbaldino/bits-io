@@ -4,6 +4,7 @@ pub mod bit_buf_impls;
 pub mod bit_buf_mut;
 pub mod bit_buf_mut_exts;
 pub mod bit_buf_mut_impls;
+pub mod bit_take;
 pub mod bits;
 pub mod bits_mut;
 pub mod byte_order;
