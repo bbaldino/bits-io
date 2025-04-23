@@ -1,20 +1,18 @@
 use crate::prelude::*;
 
-// TODO: Probably just rename this to 'Take' since we'll use it for both?
-
 /// A `BitBuf` adaptor which limits the bits read from an underlying buffer.
-pub struct BitTake<T> {
+pub struct Take<T> {
     inner: T,
     limit: usize,
 }
 
-impl<T> BitTake<T> {
-    pub fn new(inner: T, limit: usize) -> BitTake<T> {
+impl<T> Take<T> {
+    pub fn new(inner: T, limit: usize) -> Take<T> {
         Self { inner, limit }
     }
 }
 
-impl<T> BitTake<T> {
+impl<T> Take<T> {
     pub fn into_inner(self) -> T {
         self.inner
     }
@@ -36,7 +34,7 @@ impl<T> BitTake<T> {
     }
 }
 
-impl<T: BitBuf> BitBuf for BitTake<T> {
+impl<T: BitBuf> BitBuf for Take<T> {
     fn advance(&mut self, count: usize) {
         assert!(count <= self.limit);
         self.inner.advance(count);
