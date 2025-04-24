@@ -47,11 +47,9 @@ pub trait BitBufMut {
     /// Writing to a BitBufMut may involve allocating more memory on the fly. Implementations may
     /// fail before reaching the number of bytes indicated by this method if they encounter an
     /// allocation failure.
-    fn remaining_mut(&self) -> usize {
-        self.remaining_mut_bytes().saturating_mul(8)
-    }
+    fn remaining_mut(&self) -> usize;
 
-    /// Returns the number of bytes that can be written from the current position until the end of
+    /// Returns the number of _full_ bytes that can be written from the current position until the end of
     /// the buffer is reached.  
     ///
     /// This value is greater than or equal to the length of the slice returned by chunk_mut().
@@ -59,7 +57,9 @@ pub trait BitBufMut {
     /// Writing to a BitBufMut may involve allocating more memory on the fly. Implementations may
     /// fail before reaching the number of bytes indicated by this method if they encounter an
     /// allocation failure.
-    fn remaining_mut_bytes(&self) -> usize;
+    fn remaining_mut_bytes(&self) -> usize {
+        self.remaining_mut() / 8
+    }
 
     /// Transfer bits into `self` from `src` and advance the cursor by the number of bits written.
     ///
