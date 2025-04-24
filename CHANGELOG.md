@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/bbaldino/bits-io/compare/v0.3.0...v0.4.0) - 2025-04-24
+
+### Other
+
+- update nsw-types/remove unneeded num-traits feature
+- fix impl of remaining for BitBufMut
+- rename BitTake -> Take
+- fix up some unit tests
+
 ## [0.3.0](https://github.com/bbaldino/bits-io/compare/v0.2.0...v0.3.0) - 2025-04-23
 
 ### Added
