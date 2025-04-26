@@ -47,14 +47,16 @@ impl<T: BitBuf> BitBuf for Take<T> {
 
     fn chunk_bits(&self) -> &BitSlice {
         let chunk = self.inner.chunk_bits();
-        &chunk[..std::cmp::min(chunk.len(), self.limit)]
+        let end = std::cmp::min(chunk.len(), self.limit);
+        &chunk[..end]
     }
 
     fn chunk_bytes(&self) -> &[u8] {
         assert!(self.byte_aligned());
         let chunk = self.inner.chunk_bytes();
         let byte_limit = self.limit / 8;
-        &chunk[..std::cmp::min(chunk.len(), byte_limit)]
+        let end = std::cmp::min(chunk.len(), byte_limit);
+        &chunk[..end]
     }
 
     fn byte_aligned(&self) -> bool {

@@ -8,5 +8,6 @@ pub mod bits;
 pub mod bits_mut;
 pub mod byte_order;
 pub mod chain;
+pub mod limit;
 pub mod take;
 mod util;

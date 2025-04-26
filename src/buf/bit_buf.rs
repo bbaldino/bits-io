@@ -134,6 +134,7 @@ pub trait BitBuf {
         Ok(())
     }
 
+    /// Create an adaptor which can read at most `limit` bits from `self`.
     fn take_bits(self, limit: usize) -> Take<Self>
     where
         Self: Sized,
@@ -141,6 +142,7 @@ pub trait BitBuf {
         Take::new(self, limit)
     }
 
+    /// Create an adaptor which can read at most `limit` bytes from `self`.
     fn take_bytes(self, limit: usize) -> Take<Self>
     where
         Self: Sized,

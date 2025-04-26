@@ -2,7 +2,7 @@ use bytes::buf::UninitSlice;
 
 use crate::prelude::*;
 
-use super::chain::Chain;
+use super::{chain::Chain, limit::Limit};
 
 pub trait BitBufMut {
     /// Advance the internal cursor of the BitBufMut by `count` bits.
@@ -51,6 +51,22 @@ pub trait BitBufMut {
     /// fail before reaching the number of bytes indicated by this method if they encounter an
     /// allocation failure.
     fn remaining_mut_bits(&self) -> usize;
+
+    /// Creates an adaptor which can write at most `limit` bits to `self`
+    fn limit_bits(self, limit: usize) -> Limit<Self>
+    where
+        Self: Sized,
+    {
+        Limit::new(self, limit)
+    }
+
+    /// Creates an adaptor which can write at most `limit` bytes to `self`
+    fn limit_bytes(self, limit: usize) -> Limit<Self>
+    where
+        Self: Sized,
+    {
+        Limit::new(self, limit * 8)
+    }
 
     /// Returns true if there is space in self for more bits.
     ///
