@@ -4,13 +4,13 @@ use super::{bit_buf_mut::BitBufMut, bits_mut::BitsMut};
 use crate::{buf::util::bytes_needed, prelude::*};
 
 impl BitBufMut for BitsMut {
-    fn remaining_mut(&self) -> usize {
+    fn remaining_mut_bits(&self) -> usize {
         usize::MAX - self.bit_len
     }
 
-    fn chunk_mut(&mut self) -> &mut BitSlice {
+    fn chunk_mut_bits(&mut self) -> &mut BitSlice {
         if self.capacity == self.bit_len {
-            self.reserve(64);
+            self.reserve_bits(64);
         }
         self.spare_capacity_mut()
     }
@@ -18,13 +18,13 @@ impl BitBufMut for BitsMut {
     fn chunk_mut_bytes(&mut self) -> &mut bytes::buf::UninitSlice {
         assert!(self.byte_aligned_mut());
         if self.capacity == self.bit_len {
-            self.reserve(64);
+            self.reserve_bits(64);
         }
         self.inner.chunk_mut()
     }
 
-    fn advance_mut(&mut self, cnt: usize) {
-        assert!(cnt <= self.remaining_mut(), "advance_mut past end");
+    fn advance_mut_bits(&mut self, cnt: usize) {
+        assert!(cnt <= self.remaining_mut_bits(), "advance_mut past end");
         let current_byte_len = bytes_needed(self.bit_len);
         self.bit_len += cnt;
         let new_byte_len = bytes_needed(self.bit_len);

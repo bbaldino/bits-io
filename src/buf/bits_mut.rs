@@ -63,7 +63,7 @@ impl BitsMut {
     ///
     /// The resulting object has a length of `len` and a capacity greater than or equal to `len`.
     /// The entire length of the object will be filled with zeros.
-    pub fn zeroed(len: usize) -> Self {
+    pub fn zeroed_bits(len: usize) -> Self {
         let num_bytes = bytes_needed(len);
         Self {
             inner: BytesMut::zeroed(num_bytes),
@@ -78,7 +78,7 @@ impl BitsMut {
     /// The resulting object has a length of `len` * 8 and a capacity greater than or equal to `len`
     /// * 8. The entire length of the object will be filled with zeros.
     pub fn zeroed_bytes(len: usize) -> Self {
-        Self::zeroed(len * 8)
+        Self::zeroed_bits(len * 8)
     }
 
     /// Converts self into an immutable [`Bits`].
@@ -96,15 +96,15 @@ impl BitsMut {
     /// Appends given bytes to this BytesMut.
     ///
     /// If this `BitsMut` object does not have enough capacity, it is resized first.
-    pub fn extend_from_slice(&mut self, slice: &BitSlice) {
+    pub fn extend_from_bit_slice(&mut self, slice: &BitSlice) {
         let count = slice.len();
-        self.reserve(count);
+        self.reserve_bits(count);
 
         let dest = self.spare_capacity_mut();
         assert!(dest.len() >= count);
         dest[..count].copy_from_bitslice(slice);
 
-        self.advance_mut(count);
+        self.advance_mut_bits(count);
     }
 
     /// Returns the remaining spare capacity of the buffer as a `&mut BitSlice`.
@@ -146,15 +146,15 @@ impl BitsMut {
     ///
     /// This will explicitly set the size of the buffer without actually modifying the data, so it
     /// is up to the caller to ensure that the data has been initialized.
-    pub fn set_len(&mut self, len: usize) {
+    pub fn set_len_bits(&mut self, len: usize) {
         self.bit_len = len;
         unsafe { self.inner.set_len(bytes_needed(len)) };
     }
 
-    /// Reserves capacity for at least additional more bits to be inserted into the given
+    /// Reserves capacity for at least `additional` more bits to be inserted into the given
     /// `BitsMut`.
-    pub fn reserve(&mut self, additional: usize) {
-        let len = self.len();
+    pub fn reserve_bits(&mut self, additional: usize) {
+        let len = self.len_bits();
         let remainder = self.capacity - len;
 
         if additional <= remainder {
@@ -165,11 +165,17 @@ impl BitsMut {
         self.capacity = self.inner.capacity() * 8;
     }
 
-    /// Splits the buffer into two at the given index.
+    /// Reserves capacity for at least `additional` more bytes to be inserted into the given
+    /// `BitsMut`.
+    pub fn reserve_bytes(&mut self, additional: usize) {
+        self.reserve_bits(additional * 8);
+    }
+
     ///
+    /// Splits the buffer into two at the given bit index.
     /// Afterwards `self` contains elements `[at, len)`, and the returned `BitsMut` contains
     /// elements `[0, at)`.
-    pub fn split_to(&mut self, at: usize) -> Self {
+    pub fn split_to_bits(&mut self, at: usize) -> Self {
         assert!(
             at <= self.bit_len,
             "split_to out of bounds: {:?} must be <= {:?}",
@@ -178,7 +184,7 @@ impl BitsMut {
         );
 
         let mut other = self.clone();
-        self.advance_unchecked(at);
+        self.advance_unchecked_bits(at);
         other.capacity = at;
         other.bit_len = at;
         other
@@ -190,7 +196,7 @@ impl BitsMut {
     /// Afterwards self contains elements [at, len), and the returned BitsMut contains elements [0,
     /// at).
     pub fn split_to_bytes(&mut self, at: usize) -> Self {
-        self.split_to(at * 8)
+        self.split_to_bits(at * 8)
     }
 
     /// Removes the bits from the current view, returning them in a new `BitsMut` handle.
@@ -198,14 +204,14 @@ impl BitsMut {
     /// Afterwards, self will be empty, but will retain any additional capacity that it had before
     /// the operation. This is identical to self.split_to(self.len()).
     pub fn split(&mut self) -> Self {
-        self.split_to(self.bit_len)
+        self.split_to_bits(self.bit_len)
     }
 
-    /// Splits the bits into two at the given index.
+    /// Splits the bits into two at the given bit index.
     ///
     /// Afterwards `self` contains elements `[0, at)`, and the returned `BitsMut`` contains
     /// elements `[at, capacity)`.
-    pub fn split_off(&mut self, at: usize) -> Self {
+    pub fn split_off_bits(&mut self, at: usize) -> Self {
         assert!(
             at <= self.capacity,
             "split_off out of bounds: {:?} must be <= {:?}",
@@ -215,7 +221,7 @@ impl BitsMut {
 
         let mut other = self.clone();
         // Safety: We've checked at <= self.capacity
-        other.advance_unchecked(at);
+        other.advance_unchecked_bits(at);
         self.capacity = at;
         self.bit_len = std::cmp::min(self.bit_len, at);
 
@@ -228,11 +234,11 @@ impl BitsMut {
     /// Afterwards `self` contains elements `[0, at)`, and the returned `BitsMut` contains
     /// elements `[at, capacity)`.
     pub fn split_off_bytes(&mut self, at: usize) -> Self {
-        self.split_off(at * 8)
+        self.split_off_bits(at * 8)
     }
 
     /// Returns the number of bits contained in this `Bits`
-    pub fn len(&self) -> usize {
+    pub fn len_bits(&self) -> usize {
         self.bit_len
     }
 
@@ -249,7 +255,7 @@ impl BitsMut {
     }
 
     /// Advance the buffer by `count` bits without bounds checking
-    fn advance_unchecked(&mut self, count: usize) {
+    fn advance_unchecked_bits(&mut self, count: usize) {
         if count == 0 {
             return;
         }
@@ -331,7 +337,7 @@ mod tests {
     fn test_split_to() {
         let mut bits = BitsMut::from(bits![1, 1, 1, 1, 0, 0, 0, 0]);
 
-        let mut head = bits.split_to(4);
+        let mut head = bits.split_to_bits(4);
         head.set(0, false);
         head.set(1, false);
         assert_eq!(head[..], bits![0, 0, 1, 1]);
@@ -353,8 +359,8 @@ mod tests {
 
         let mut head = bits.split_to_bytes(1);
         // 'head' is now bits [0, 8), 'bits' is [8, 32)
-        assert_eq!(head.len(), 8);
-        assert_eq!(bits.len(), 24);
+        assert_eq!(head.len_bits(), 8);
+        assert_eq!(bits.len_bits(), 24);
         head.set(0, false);
         head.set(1, false);
         head.set(2, false);
@@ -371,12 +377,12 @@ mod tests {
         );
         // Now split at a non-byte boundary and then do a byte-split to make sure that works
         // correctly
-        let mut unaligned_split = bits.split_to(12);
+        let mut unaligned_split = bits.split_to_bits(12);
         // 'bits' is now bits [20, 32), 'unaligned_split' is [8, 20)
         let mut unaligned_byte_split = unaligned_split.split_to_bytes(1);
         // 'unaligned_split' is now bits [16, 20), 'unaligned_byte_split' is [8, 16)
-        assert_eq!(unaligned_byte_split.len(), 8);
-        assert_eq!(unaligned_split.len(), 4);
+        assert_eq!(unaligned_byte_split.len_bits(), 8);
+        assert_eq!(unaligned_split.len_bits(), 4);
 
         unaligned_byte_split.set(0, false);
         unaligned_byte_split.set(1, false);
@@ -389,11 +395,11 @@ mod tests {
 
     #[test]
     fn test_split_off() {
-        let mut bits = BitsMut::zeroed(32);
+        let mut bits = BitsMut::zeroed_bits(32);
 
-        let mut tail = bits.split_off(12);
-        assert_eq!(bits.len(), 12);
-        assert_eq!(tail.len(), 20);
+        let mut tail = bits.split_off_bits(12);
+        assert_eq!(bits.len_bits(), 12);
+        assert_eq!(tail.len_bits(), 20);
         bits.set(0, true);
         bits.set(1, true);
         bits.set(2, true);
@@ -415,13 +421,13 @@ mod tests {
         let mut bits_mut = BitsMut::with_capacity(24);
         let spare = bits_mut.spare_capacity_mut();
         spare.set(0, true);
-        bits_mut.set_len(1);
+        bits_mut.set_len_bits(1);
 
         let spare = bits_mut.spare_capacity_mut();
         spare.set(0, false);
         spare.set(1, false);
         spare.set(2, true);
-        bits_mut.set_len(4);
+        bits_mut.set_len_bits(4);
 
         assert_eq!(&bits_mut[..], bits![1, 0, 0, 1]);
     }
@@ -431,7 +437,7 @@ mod tests {
         let mut bits_mut = BitsMut::new();
         let data = bits![0, 1, 1, 0, 1, 1, 0];
 
-        bits_mut.extend_from_slice(data);
+        bits_mut.extend_from_bit_slice(data);
         assert_eq!(&bits_mut[..], data);
     }
 }

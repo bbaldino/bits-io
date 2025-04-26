@@ -3,16 +3,16 @@ use bitvec::view::BitView;
 use crate::prelude::*;
 
 impl<T: BitBuf + ?Sized> BitBuf for &mut T {
-    fn advance(&mut self, count: usize) {
-        (**self).advance(count);
+    fn advance_bits(&mut self, count: usize) {
+        (**self).advance_bits(count);
     }
 
-    fn remaining(&self) -> usize {
-        (**self).remaining()
+    fn remaining_bits(&self) -> usize {
+        (**self).remaining_bits()
     }
 
-    fn chunk(&self) -> &BitSlice {
-        (**self).chunk()
+    fn chunk_bits(&self) -> &BitSlice {
+        (**self).chunk_bits()
     }
 
     fn chunk_bytes(&self) -> &[u8] {
@@ -25,16 +25,16 @@ impl<T: BitBuf + ?Sized> BitBuf for &mut T {
 }
 
 impl BitBuf for Bits {
-    fn advance(&mut self, count: usize) {
-        assert!(count <= self.remaining(), "advance past end of Bits");
-        self.inc_start(count);
+    fn advance_bits(&mut self, count: usize) {
+        assert!(count <= self.remaining_bits(), "advance past end of Bits");
+        self.inc_start_bits(count);
     }
 
-    fn remaining(&self) -> usize {
+    fn remaining_bits(&self) -> usize {
         self.bit_len
     }
 
-    fn chunk(&self) -> &BitSlice {
+    fn chunk_bits(&self) -> &BitSlice {
         &BitSlice::from_slice(&self.inner)[self.bit_start..self.bit_start + self.bit_len]
     }
 
@@ -53,18 +53,21 @@ impl BitBuf for Bits {
 }
 
 impl BitBuf for BitsMut {
-    fn advance(&mut self, count: usize) {
-        assert!(count <= self.remaining(), "advance past end of BitsMut");
+    fn advance_bits(&mut self, count: usize) {
+        assert!(
+            count <= self.remaining_bits(),
+            "advance past end of BitsMut"
+        );
         self.bit_start += count;
         self.bit_len -= count;
         self.capacity -= count;
     }
 
-    fn remaining(&self) -> usize {
-        self.len()
+    fn remaining_bits(&self) -> usize {
+        self.len_bits()
     }
 
-    fn chunk(&self) -> &BitSlice {
+    fn chunk_bits(&self) -> &BitSlice {
         &BitSlice::from_slice(&self.inner)[self.bit_start..self.bit_start + self.bit_len]
     }
 
@@ -82,18 +85,18 @@ impl BitBuf for BitsMut {
 }
 
 impl BitBuf for &[u8] {
-    fn advance(&mut self, count: usize) {
+    fn advance_bits(&mut self, count: usize) {
         if self.len() < count {
             panic!("Can't advance past the end of slice");
         }
         *self = &self[count..];
     }
 
-    fn remaining(&self) -> usize {
+    fn remaining_bits(&self) -> usize {
         self.len() * 8
     }
 
-    fn chunk(&self) -> &BitSlice {
+    fn chunk_bits(&self) -> &BitSlice {
         self[..].view_bits()
     }
 
@@ -110,18 +113,18 @@ impl BitBuf for &[u8] {
 // later--hopefully we don't need a generic on the trait
 // impl BitBuf for &BitSlice {
 impl BitBuf for &BitSlice {
-    fn advance(&mut self, count: usize) {
+    fn advance_bits(&mut self, count: usize) {
         if self.len() < count {
             panic!("Can't advance past end of BitSlice");
         }
         *self = &self[count..];
     }
 
-    fn remaining(&self) -> usize {
+    fn remaining_bits(&self) -> usize {
         self.len()
     }
 
-    fn chunk(&self) -> &BitSlice {
+    fn chunk_bits(&self) -> &BitSlice {
         self
     }
 
@@ -147,7 +150,7 @@ impl BitBuf for &BitSlice {
 }
 
 impl<T: AsRef<BitSlice>> BitBuf for BitCursor<T> {
-    fn advance(&mut self, count: usize) {
+    fn advance_bits(&mut self, count: usize) {
         let len = self.get_ref().as_ref().len();
         let pos = self.position();
 
@@ -158,14 +161,14 @@ impl<T: AsRef<BitSlice>> BitBuf for BitCursor<T> {
         self.set_position(pos + count as u64);
     }
 
-    fn remaining(&self) -> usize {
+    fn remaining_bits(&self) -> usize {
         self.get_ref()
             .as_ref()
             .len()
             .saturating_sub(self.position() as usize)
     }
 
-    fn chunk(&self) -> &BitSlice {
+    fn chunk_bits(&self) -> &BitSlice {
         let slice = self.get_ref().as_ref();
         let start = slice.len().min(self.position() as usize);
         &slice[start..]
@@ -221,46 +224,46 @@ mod tests {
 
     #[test]
     fn test_bit_buf_bits_advance() {
-        let mut bits = Bits::copy_from_slice(bits![1, 1, 1, 1, 0, 0, 0, 0]);
+        let mut bits = Bits::copy_from_bit_slice(bits![1, 1, 1, 1, 0, 0, 0, 0]);
 
-        bits.advance(4);
-        assert_eq!(bits.len(), 4);
-        assert_eq!(bits.chunk(), bits![0, 0, 0, 0]);
+        bits.advance_bits(4);
+        assert_eq!(bits.len_bits(), 4);
+        assert_eq!(bits.chunk_bits(), bits![0, 0, 0, 0]);
     }
 
     #[test]
     fn test_bit_buf_bits_mut_advance() {
-        let mut bits_mut = BitsMut::zeroed(16);
-        bits_mut.advance(8);
-        assert_eq!(bits_mut.len(), 8);
+        let mut bits_mut = BitsMut::zeroed_bits(16);
+        bits_mut.advance_bits(8);
+        assert_eq!(bits_mut.len_bits(), 8);
     }
 
     #[test]
     fn test_bits_copy_to_slice() {
-        let mut bits = Bits::copy_from_slice(bits![1, 1, 1, 1, 0, 0, 0, 0]);
+        let mut bits = Bits::copy_from_bit_slice(bits![1, 1, 1, 1, 0, 0, 0, 0]);
 
         let dest = bits![mut 0; 4];
-        bits.copy_to_slice(dest);
+        bits.copy_to_bit_slice(dest);
         assert_eq!(dest, bits![1, 1, 1, 1,]);
 
-        bits.copy_to_slice(dest);
+        bits.copy_to_bit_slice(dest);
         assert_eq!(dest, bits![0, 0, 0, 0]);
     }
 
     #[test]
     fn test_chunk_bytes() {
         {
-            let bits = Bits::copy_from_slice(bits![1, 1, 1, 1, 0, 0, 0, 0]);
+            let bits = Bits::copy_from_bit_slice(bits![1, 1, 1, 1, 0, 0, 0, 0]);
 
             let chunk_bytes = bits.chunk_bytes();
             assert_eq!(chunk_bytes.len(), 1);
             assert_eq!(chunk_bytes[0], 0b11110000);
         }
         {
-            let mut bits = Bits::copy_from_slice(bits![
+            let mut bits = Bits::copy_from_bit_slice(bits![
                 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0
             ]);
-            bits.advance(8);
+            bits.advance_bits(8);
             let chunk_bytes = bits.chunk_bytes();
             assert_eq!(chunk_bytes.len(), 2);
             assert_eq!(chunk_bytes, [0b11111111, 0b10101010]);
@@ -280,20 +283,20 @@ mod tests {
     #[test]
     fn test_bitslice_bitbuf() {
         let mut bits = bits![1, 0, 1, 0, 1, 0];
-        assert_eq!(6, bits.remaining());
-        bits.advance(3);
-        assert_eq!(3, bits.remaining());
+        assert_eq!(6, bits.remaining_bits());
+        bits.advance_bits(3);
+        assert_eq!(3, bits.remaining_bits());
     }
 
     #[test]
     fn test_take() {
         let mut bits = Bits::from_static_bytes(&[1, 2, 3, 4]);
 
-        let mut head = (&mut bits).take(16);
+        let mut head = (&mut bits).take_bits(16);
         let value = head.get_u16::<NetworkOrder>().unwrap();
         assert!(head.get_bool().is_err());
         assert_eq!(value, 0x0102);
-        let mut tail = (&mut bits).take(16);
+        let mut tail = (&mut bits).take_bits(16);
         let value = tail.get_u16::<NetworkOrder>().unwrap();
         assert!(tail.get_bool().is_err());
         assert_eq!(value, 0x0304);

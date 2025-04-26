@@ -14,7 +14,7 @@ pub trait BitBufExts: BitBuf {
         let mut bits = BitVec::repeat(false, N);
         let slice = bits.as_mut_bitslice();
         // Copy the raw bits into the slice
-        self.try_copy_to_slice(slice)?;
+        self.try_copy_to_bit_slice(slice)?;
         // Now 'load' the value from that slice according to the given ByteOrder.
         let value: V = O::load(slice);
 
@@ -141,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_bit_buf_exts() {
-        let mut bits = Bits::copy_from_slice(bits![0, 1, 1, 0, 0, 1, 1, 1]);
+        let mut bits = Bits::copy_from_bit_slice(bits![0, 1, 1, 0, 0, 1, 1, 1]);
 
         let value = bits.get_u4().unwrap();
         assert_eq!(value, u4::new(0b0110));
@@ -154,22 +154,22 @@ mod tests {
     #[test]
     fn test_get_big_endian() {
         let u9_data = bits![1, 0, 1, 0, 1, 0, 1, 0, 1];
-        let mut bits = Bits::copy_from_slice(u9_data);
+        let mut bits = Bits::copy_from_bit_slice(u9_data);
         assert_eq!(bits.get_u9::<BigEndian>().unwrap(), u9::new(0b101010101));
 
         let u10_data = bits![1, 0, 1, 0, 1, 0, 1, 0, 1, 1];
-        let mut bits = Bits::copy_from_slice(u10_data);
+        let mut bits = Bits::copy_from_bit_slice(u10_data);
         assert_eq!(bits.get_u10::<BigEndian>().unwrap(), u10::new(0b1010101011));
 
         let u11_data = bits![0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0];
-        let mut bits = Bits::copy_from_slice(u11_data);
+        let mut bits = Bits::copy_from_bit_slice(u11_data);
         assert_eq!(
             bits.get_u11::<BigEndian>().unwrap(),
             u11::new(0b00110011000)
         );
 
         let u12_data = bits![0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0];
-        let mut bits = Bits::copy_from_slice(u12_data);
+        let mut bits = Bits::copy_from_bit_slice(u12_data);
         assert_eq!(
             bits.get_u12::<BigEndian>().unwrap(),
             u12::new(0b011111111000)
@@ -180,7 +180,7 @@ mod tests {
     fn test_get_little_endian() {
         // Little-endian form of 1_10101011
         let u9_data = bits![1, 0, 1, 0, 1, 0, 1, 1, 1];
-        let mut bits = Bits::copy_from_slice(u9_data);
+        let mut bits = Bits::copy_from_bit_slice(u9_data);
         assert_eq!(
             bits.get_u9::<LittleEndian>().unwrap(),
             u9::new(0b1_10101011)
@@ -188,7 +188,7 @@ mod tests {
 
         // Little-endian form of 11_10101011
         let u10_data = bits![1, 0, 1, 0, 1, 0, 1, 1, 1, 1];
-        let mut bits = Bits::copy_from_slice(u10_data);
+        let mut bits = Bits::copy_from_bit_slice(u10_data);
         assert_eq!(
             bits.get_u10::<LittleEndian>().unwrap(),
             u10::new(0b11_10101011)
@@ -196,7 +196,7 @@ mod tests {
 
         // Little-endian form of 110_10101011
         let u11_data = bits![1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0];
-        let mut bits = Bits::copy_from_slice(u11_data);
+        let mut bits = Bits::copy_from_bit_slice(u11_data);
         assert_eq!(
             bits.get_u11::<LittleEndian>().unwrap(),
             u11::new(0b110_10101011)
@@ -204,7 +204,7 @@ mod tests {
 
         // Little-endian form of 11001101_11101111
         let u16_data = bits![1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1];
-        let mut bits = Bits::copy_from_slice(u16_data);
+        let mut bits = Bits::copy_from_bit_slice(u16_data);
         assert_eq!(
             bits.get_u16::<LittleEndian>().unwrap(),
             0b11001101_11101111u16
@@ -212,7 +212,7 @@ mod tests {
 
         // Little-endian form of 11001101_11101111
         let u20_data = bits![1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0];
-        let mut bits = Bits::copy_from_slice(u20_data);
+        let mut bits = Bits::copy_from_bit_slice(u20_data);
         assert_eq!(
             bits.get_u20::<LittleEndian>().unwrap(),
             u20::new(0b1010_10111100_11011110)

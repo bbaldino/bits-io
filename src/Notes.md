@@ -231,3 +231,51 @@ structure, I think we can always leverage self.inner.capacity() for capacity.
 --> Turns out this is wrong: we need to manage a bits-level capacity because
 the bits-level 'split' operations mean that the capacity limit can occur at a
 non-byte boundary.
+
+## Making Buf/BufMut supertraits
+
+I wanted to re-orient the types here a bit, especially the `bytes` equivalents,
+to be more about "bytes extensions" than "bits types" since the goal is really
+to have them do what bytes does _plus_ some bits-related stuff.  One idea there
+was to make the BitBuf/BitBufMut traits have Buf/BufMut as super-traits.  The
+problem there is that then I'd have to be able to implement Buf/BufMut for
+types like BitSlice, which are foreign, so that doesn't work.
+
+One option, if the goal is to allow this to be passed somewhere that expect
+`<T: Buf>`, might be to add a method which hands out an `impl Buf` via some
+'buf_adaptor' method/type.
+
+## impl BitBuf for &BitSlice<BitSafeU8>
+
+The `BitBuf` trait currently defines methods:
+
+```rust
+/// Returns a [`BitSlice`] starting at the current position and of length between 0 and
+/// `BitBuf::remaining`.  Note that this _can_ return a shorter slice.
+fn chunk(&self) -> &BitSlice;
+
+
+/// Returns a slice of bytes starting at the current position and of length between 0 and
+/// `BitBuf::remaining_bytes`.  Note that this _can_ return a shorter slice.
+fn chunk_bytes(&self) -> &[u8];
+```
+
+And we have `impl BitBuf for &BitSlice`, but this means there's no impl of
+`BitBuf` for `&BitSlice<BitSafeU8>`.  In order to do this we'd need to make the
+`BitBuf` trait generic around the `BitStore` type, such that we'd end up with
+something like:
+
+```rust
+
+pub trait BitBuf<S: BitStore> {
+  ...
+fn chunk(&self) -> &BitSlice<S>;
+
+fn chunk_bytes(&self) -> &[O::Unalias];
+}
+```
+
+but this would ruin the ability to use `BitBuf` as a generic bound, so I'm not
+sure we want that.  I haven't run into a case where I needed this yet, but it
+feels like a bit of a timebomb to have it lurking in there.  Maybe can
+eventually find some way to work around it.

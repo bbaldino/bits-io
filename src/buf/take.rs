@@ -35,18 +35,18 @@ impl<T> Take<T> {
 }
 
 impl<T: BitBuf> BitBuf for Take<T> {
-    fn advance(&mut self, count: usize) {
+    fn advance_bits(&mut self, count: usize) {
         assert!(count <= self.limit);
-        self.inner.advance(count);
+        self.inner.advance_bits(count);
         self.limit -= count;
     }
 
-    fn remaining(&self) -> usize {
-        std::cmp::min(self.inner.remaining(), self.limit)
+    fn remaining_bits(&self) -> usize {
+        std::cmp::min(self.inner.remaining_bits(), self.limit)
     }
 
-    fn chunk(&self) -> &BitSlice {
-        let chunk = self.inner.chunk();
+    fn chunk_bits(&self) -> &BitSlice {
+        let chunk = self.inner.chunk_bits();
         &chunk[..std::cmp::min(chunk.len(), self.limit)]
     }
 
