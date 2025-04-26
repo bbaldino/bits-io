@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use super::take::Take;
+use super::{chain::Chain, take::Take};
 
 pub trait BitBuf {
     /// Advance the internal cursor of the `BitBuf` by `count` bits.
@@ -25,6 +25,31 @@ pub trait BitBuf {
     ///  Return the number of _full_ bytes between the current position and the end of the buffer.
     fn remaining_bytes(&self) -> usize {
         self.remaining_bits() / 8
+    }
+
+    /// Returns true if there are any more bits to consume.
+    ///
+    /// This is equivalent to `self.remaining_bits() > 0`
+    fn has_remaining_bits(&self) -> bool {
+        self.remaining_bits() > 0
+    }
+
+    /// Returns true if there are any more cmplete bytes to consume.
+    ///
+    /// This is equivalent to `self.remaining_bytes() > 0`
+    fn has_remaining_bytes(&self) -> bool {
+        self.remaining_bytes() > 0
+    }
+
+    /// Creates an adaptor which will chain this buffer to another.
+    ///
+    /// The returned `BitBuf` instance will first consume all data from `self`.  Afterwards the
+    /// output is equivalent to the output of `next`.
+    fn chain<U: BitBuf>(self, next: U) -> Chain<Self, U>
+    where
+        Self: Sized,
+    {
+        Chain::new(self, next)
     }
 
     /// Returns a [`BitSlice`] starting at the current position and of length between 0 and

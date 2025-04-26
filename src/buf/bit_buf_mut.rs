@@ -2,6 +2,8 @@ use bytes::buf::UninitSlice;
 
 use crate::prelude::*;
 
+use super::chain::Chain;
+
 pub trait BitBufMut {
     /// Advance the internal cursor of the BitBufMut by `count` bits.
     ///
@@ -50,6 +52,13 @@ pub trait BitBufMut {
     /// allocation failure.
     fn remaining_mut_bits(&self) -> usize;
 
+    /// Returns true if there is space in self for more bits.
+    ///
+    /// This is equivalent to calling `self.remaining_mut_bits() > 0`
+    fn has_remaining_mut_bits(&self) -> bool {
+        self.remaining_mut_bits() > 0
+    }
+
     /// Returns the number of _full_ bytes that can be written from the current position until the
     /// end of the buffer is reached.  
     ///
@@ -60,6 +69,24 @@ pub trait BitBufMut {
     /// allocation failure.
     fn remaining_mut_bytes(&self) -> usize {
         self.remaining_mut_bits() / 8
+    }
+
+    /// Returns true if there is space in self for more bytes.
+    ///
+    /// This is equivalent to calling `self.remaining_mut_bytes() > 0`
+    fn has_reminaing_mut_bytes(&self) -> bool {
+        self.remaining_mut_bytes() > 0
+    }
+
+    /// Creates an adaptor which will chain this buffer to another.
+    ///
+    /// The returned `BitBufMut` instance will first write to all bytes from `self`. Afterwards it
+    /// will write to `next`.
+    fn chain_mut<U: BitBufMut>(self, next: U) -> Chain<Self, U>
+    where
+        Self: Sized,
+    {
+        Chain::new(self, next)
     }
 
     /// Transfer bits into `self` from `src` and advance the cursor by the number of bits written.

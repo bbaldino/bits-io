@@ -7,5 +7,6 @@ pub mod bit_buf_mut_impls;
 pub mod bits;
 pub mod bits_mut;
 pub mod byte_order;
+pub mod chain;
 pub mod take;
 mod util;

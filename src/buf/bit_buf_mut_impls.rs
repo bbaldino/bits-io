@@ -1,3 +1,4 @@
+use bitvec::view::BitView;
 use bytes::BufMut;
 
 use super::{bit_buf_mut::BitBufMut, bits_mut::BitsMut};
@@ -39,5 +40,68 @@ impl BitBufMut for BitsMut {
 
     fn byte_aligned_mut(&self) -> bool {
         self.bit_start % 8 == 0 && self.bit_len % 8 == 0
+    }
+}
+
+impl BitBufMut for &mut [u8] {
+    fn advance_mut_bits(&mut self, count: usize) {
+        assert!(
+            count <= self.remaining_mut_bits(),
+            "advance_mut_bits past end"
+        );
+        let byte_count = bytes_needed(count);
+
+        let (_, b) = std::mem::take(self).split_at_mut(byte_count);
+        *self = b;
+    }
+
+    fn chunk_mut_bits(&mut self) -> &mut BitSlice {
+        self.view_bits_mut()
+    }
+
+    fn chunk_mut_bytes(&mut self) -> &mut bytes::buf::UninitSlice {
+        bytes::buf::UninitSlice::new(self)
+    }
+
+    fn remaining_mut_bits(&self) -> usize {
+        self.len() * 8
+    }
+
+    fn byte_aligned_mut(&self) -> bool {
+        true
+    }
+}
+
+impl BitBufMut for &mut BitSlice {
+    fn advance_mut_bits(&mut self, count: usize) {
+        assert!(count <= self.len(), "advance_mut_bits past end");
+        *self = &mut std::mem::take(self)[count..];
+    }
+
+    fn chunk_mut_bits(&mut self) -> &mut BitSlice {
+        self
+    }
+
+    fn chunk_mut_bytes(&mut self) -> &mut bytes::buf::UninitSlice {
+        assert!(self.byte_aligned_mut());
+        let bitvec::domain::Domain::Region { body, .. } = self.domain_mut() else {
+            unreachable!("Verified by the assert above");
+        };
+        bytes::buf::UninitSlice::new(body)
+    }
+
+    fn remaining_mut_bits(&self) -> usize {
+        self.len()
+    }
+
+    fn byte_aligned_mut(&self) -> bool {
+        matches!(
+            self.domain(),
+            bitvec::domain::Domain::Region {
+                head: None,
+                tail: None,
+                ..
+            }
+        )
     }
 }
