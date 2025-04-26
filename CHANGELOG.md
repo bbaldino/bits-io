@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/bbaldino/bits-io/compare/v0.4.0...v0.5.0) - 2025-04-26
+
+### Other
+
+- rename all 'bits' methods to include bits in the names to make things more obvious
+
 ## [0.4.0](https://github.com/bbaldino/bits-io/compare/v0.3.0...v0.4.0) - 2025-04-24
 
 ### Other
