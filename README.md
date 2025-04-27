@@ -1,60 +1,38 @@
 # bits-io
 
-Bit-level IO utilities for Rust, inspired by std::io patterns but designed for
-working with bits instead of bytes.
+> **Flexible bit- and byte-level I/O operations for Rust.**
 
-Built on top of [`bitvec`](https://docs.rs/bitvec) for bit-level abstractions,
-[nsw-types](https://github.com/bbaldino/nsw-types) for non-standard-width types
-and [bytes](https://docs.rs/bytes/latest/bytes/index.html) for efficient
-storage.
+**bits-io** provides types and traits for handling both bits and bytes seamlessly.
 
-## Overview
+While traditional Rust types like [`Bytes`](https://docs.rs/bytes) and
+[`Buf`](https://docs.rs/bytes) (and their mutable counterparts) as well as the
+standard library’s
+[`Cursor`](https://doc.rust-lang.org/std/io/struct.Cursor.html),
+[`Read`](https://doc.rust-lang.org/std/io/trait.Read.html), and
+[`Write`](https://doc.rust-lang.org/std/io/trait.Write.html) operate primarily
+at the byte level, **bits-io** extends these capabilities by offering
+fine-grained bit-level access alongside full support for familiar byte-oriented
+workflows.
 
-`bits-io` provides:
+The types in **bits-io** are designed as supersets of their standard
+counterparts:
 
-- `BitCursor` - Like `std::io::Cursor`, but for bits.
-- `BitRead` / `BitWrite` - Like `std::io::Read` and `Write`, but for bits.
-- `Bits` / `BitsMut` - Like `bytes::Bytes` and `BytesMut` but with bit-level APIs
-- `BitBuf` / `BitBufMt` - Like `bytes::Buf` and `BufMut`
-- `BitSlice` - A type alias for `&BitSlice<u8, Msb0>` (all APIs here use u8
-storage and Msb0 ordering).
-- Helpful macros for defining bits and bitvecs with u8 storage and Msb0 order.
+- You can efficiently manipulate whole bytes, slices, and streams just as before.
+- You can also access and manipulate individual bits when needed, without
+sacrificing performance or ergonomics.
 
-## BitCursor
+---
 
-Mimics `std::io::Cursor` but tracks a bit-level position instead of a
-byte-level position.  In addition to the standard `Seek` implementation which
-allows seeking by a number of bytes, it also provides `BitSeek` which allows
-seeking by a number of bits.
+## Main Types
 
-## `BitRead`
+| Type             | Description |
+|------------------|-------------|
+| **Bits**         | An immutable view over underlying data that supports bit-level operations alongside traditional byte-level access—akin to `Bytes`, but with bit-level APIs as well. |
+| **BitsMut**      | A mutable, growable view that lets you work at both the byte and bit levels, similar in spirit to `BytesMut` with additional fine-grained control. |
+| **BitBuf**       | A read-only buffer trait that matches `bytes::Buf` and bit-level operations. |
+| **BitBufMut**    | A mutable buffer trait that matches `bytes::BufMut` and bit-level operations. |
+| **BitCursor**    | A cursor that tracks the current position in a buffer by bit rather than by byte; `std::io::Cursor` for bits. |
+| **BitRead**      | A trait analogous to `std::io::Read`, enabling both bite- and byte-level reads. |
+| **BitWrite**     | A trait analagous `std::io::Write`, enabling both bit- and byte-level writes. |
 
-`BitRead` mimics the
-[`std::io::Read`](https://doc.rust-lang.org/std/io/trait.Read.html) trait, but
-its API is defined in terms of reading into "bit slices" instead of `u8` slices
-(`&[u8]`) like `std::io::Read`.  It leverages the `BitSlice` type defined in
-the [bitvec](https://docs.rs/bitvec/latest/bitvec/) crate.
-
-## `BitWrite`
-
-`BitWrite` mimics the
-[`std::io::Write`](https://doc.rust-lang.org/std/io/trait.Write.html) trait,
-but its API is defined in terms of writing from "bit slices" instead of `u8`
-slices (`&[u8]`).  It leverages the `BitSlice` type defined in the
-[bitvec](https://docs.rs/bitvec/latest/bitvec/) crate.
-
-## Examples
-
-```rust
-let data: Vec<u8> = vec![0b11100000, 0b11101111];
-let mut cursor = BitCursor::from_vec(data);
-
-// Read any non-standard-width type from the cursor
-let u3_val = cursor.read_u3().unwrap();
-assert_eq!(u3_val, nsw_types::u3::new(0b111));
-// Sizes larger than 8 bits require a byte order argument
-let u13_val = cursor
-    .read_u13::<crate::byte_order::NetworkOrder>()
-    .unwrap();
-assert_eq!(u13_val, nsw_types::u13::new(0b0000011101111));
-```
+---
