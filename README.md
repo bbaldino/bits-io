@@ -29,8 +29,8 @@ counterparts:
 |------------------|-------------|
 | **Bits**         | An immutable view over underlying data that supports bit-level operations alongside traditional byte-level access—akin to `Bytes`, but with bit-level APIs as well. |
 | **BitsMut**      | A mutable, growable view that lets you work at both the byte and bit levels, similar in spirit to `BytesMut` with additional fine-grained control. |
-| **BitBuf**       | A read-only buffer trait that matches `bytes::Buf` and bit-level operations. |
-| **BitBufMut**    | A mutable buffer trait that matches `bytes::BufMut` and bit-level operations. |
+| **BitBuf**       | A read-only buffer trait that matches `bytes::Buf` and adds bit-level operations. |
+| **BitBufMut**    | A mutable buffer trait that matches `bytes::BufMut` and adds bit-level operations. |
 | **BitCursor**    | A cursor that tracks the current position in a buffer by bit rather than by byte; `std::io::Cursor` for bits. |
 | **BitRead**      | A trait analogous to `std::io::Read`, enabling both bite- and byte-level reads. |
 | **BitWrite**     | A trait analagous `std::io::Write`, enabling both bit- and byte-level writes. |
