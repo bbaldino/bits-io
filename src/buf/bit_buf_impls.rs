@@ -150,9 +150,49 @@ impl BitBuf for &BitSlice {
     }
 }
 
-impl<T: AsRef<BitSlice>> BitBuf for BitCursor<T> {
+impl BitBuf for BitCursor<&[u8]> {
     fn advance_bits(&mut self, count: usize) {
-        let len = self.get_ref().as_ref().len();
+        let byte_len = self.get_ref().len();
+        let bit_len = byte_len * 8;
+        let bit_pos = self.position();
+
+        let max_count = bit_len.saturating_sub(bit_pos as usize);
+        if count > max_count {
+            panic!("Can't advance beyond end of buffer");
+        }
+        self.set_position(bit_pos + count as u64);
+    }
+
+    fn remaining_bits(&self) -> usize {
+        let byte_len = self.get_ref().len();
+        let bit_len = byte_len * 8;
+
+        bit_len.saturating_sub(self.position() as usize)
+    }
+
+    fn chunk_bits(&self) -> &BitSlice {
+        let slice = self.get_ref().view_bits();
+        let start = slice.len().min(self.position() as usize);
+        &slice[start..]
+    }
+
+    fn chunk_bytes(&self) -> &[u8] {
+        assert!(self.byte_aligned());
+        let byte_start_position = (self.position() / 8) as usize;
+
+        &self.get_ref()[byte_start_position..]
+    }
+
+    fn byte_aligned(&self) -> bool {
+        // We know the underlying storage (a &[u8]) is inherently byte-aligned, so we just need to
+        // make sure the position is also byte-aligned
+        self.position() % 8 == 0
+    }
+}
+
+impl BitBuf for BitCursor<&BitSlice> {
+    fn advance_bits(&mut self, count: usize) {
+        let len = self.get_ref().len();
         let pos = self.position();
 
         let max_count = len.saturating_sub(pos as usize);
@@ -164,37 +204,43 @@ impl<T: AsRef<BitSlice>> BitBuf for BitCursor<T> {
 
     fn remaining_bits(&self) -> usize {
         self.get_ref()
-            .as_ref()
             .len()
             .saturating_sub(self.position() as usize)
     }
 
     fn chunk_bits(&self) -> &BitSlice {
-        let slice = self.get_ref().as_ref();
+        let slice = self.get_ref();
         let start = slice.len().min(self.position() as usize);
         &slice[start..]
     }
 
     fn chunk_bytes(&self) -> &[u8] {
         assert!(self.byte_aligned());
-        let bitslice = self.get_ref().as_ref();
+        let bitslice = self.get_ref();
         let bitvec::domain::Domain::Region { body, .. } = bitslice.domain() else {
             unreachable!("Verified by the assert above");
         };
+        // TODO: if/when 'byte_aligned' changes to account for position and underlying storage
+        // alinging on a boundary we'll need to change the way we calculate the starting byte
+        // position into 'body'
+        let start_byte_position = (self.position() / 8) as usize;
 
-        body
+        &body[start_byte_position..]
     }
 
     fn byte_aligned(&self) -> bool {
-        // TODO: helper func on BitSlice?
+        // Need to ensure that both the underlying storage is byte-aligned and the position is on a
+        // byte boundary.
+        // TODO: technically these two could 'cancel eachother out': the position may be on a
+        // byte-boundary on the underlying storage.  Should handle that case here as well.
         matches!(
-            self.get_ref().as_ref().domain(),
+            self.get_ref().domain(),
             bitvec::domain::Domain::Region {
                 head: None,
                 tail: None,
                 ..
             }
-        )
+        ) && self.position() % 8 == 0
     }
 }
 
@@ -311,5 +357,37 @@ mod tests {
         let value = tail.get_u16::<NetworkOrder>().unwrap();
         assert!(tail.get_bool().is_err());
         assert_eq!(value, 0x0304);
+    }
+
+    #[test]
+    fn test_cursor_bit_slice() {
+        #[rustfmt::skip]
+        let bits = bits![
+            1, 0, 1, 0, 1, 0, 1, 0,
+            1, 1, 1, 1, 0, 0, 0, 0,
+            0, 0, 0, 0, 1, 1, 1, 1,
+        ];
+        let mut cursor = BitCursor::new(bits);
+
+        cursor.get_u1().unwrap();
+        assert!(!cursor.byte_aligned());
+        cursor.get_u7().unwrap();
+        assert!(cursor.byte_aligned());
+        let chunk = cursor.chunk_bytes();
+        assert_eq!(chunk, &[0b11110000, 0b00001111]);
+    }
+
+    #[test]
+    fn test_cursor_u8_slice() {
+        let data = &[0b11110000u8, 2, 3, 4][..];
+        let mut cursor = BitCursor::new(data);
+
+        cursor.get_u4().unwrap();
+        assert!(!cursor.byte_aligned());
+        cursor.get_u4().unwrap();
+        assert!(cursor.byte_aligned());
+
+        let chunk = cursor.chunk_bytes();
+        assert_eq!(chunk, &[2, 3, 4]);
     }
 }
