@@ -43,8 +43,9 @@ impl BitBuf for Bits {
         assert!(self.bit_len % 8 == 0);
 
         let byte_start = self.bit_start / 8;
+        let size_bytes = self.bit_len / 8;
 
-        &self.inner[byte_start..]
+        &self.inner[byte_start..byte_start + size_bytes]
     }
 
     fn byte_aligned(&self) -> bool {
@@ -268,6 +269,16 @@ mod tests {
             assert_eq!(chunk_bytes.len(), 2);
             assert_eq!(chunk_bytes, [0b11111111, 0b10101010]);
         }
+    }
+
+    #[test]
+    fn test_chunk_after_split() {
+        // Make sure that a call to chunk after some kind of split respects the new limit
+        let mut bits = Bits::from_static_bytes(&[1, 2, 3, 4, 5]);
+
+        let start = bits.split_to_bytes(2);
+        let start_chunk = start.chunk_bytes();
+        assert_eq!(start_chunk.len(), 2);
     }
 
     #[test]

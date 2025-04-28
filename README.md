@@ -19,7 +19,7 @@ counterparts:
 
 - You can efficiently manipulate whole bytes, slices, and streams just as before.
 - You can also access and manipulate individual bits when needed, without
-sacrificing performance or ergonomics.
+  sacrificing performance or ergonomics.
 
 ---
 
