@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3](https://github.com/bbaldino/bits-io/compare/v0.5.2...v0.5.3) - 2025-04-29
+
+### Fixed
+
+- fix some BitBuf impl code for BitCursor<&BitSlice>, add BitBuf impl
+- properly limit slice returned by slice_bytes from a Bits instance
+
+### Other
+
+- tweak readme
+
 ## [0.5.2](https://github.com/bbaldino/bits-io/compare/v0.5.1...v0.5.2) - 2025-04-27
 
 ### Other
