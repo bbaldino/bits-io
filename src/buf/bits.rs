@@ -55,7 +55,7 @@ impl Bits {
         }
     }
 
-    /// Creates a new [`Bits`] instance from the given slice by copying it.
+    /// Creates a new [`Bits`] instance from the given `BitSlice` by copying it.
     pub fn copy_from_bit_slice(bits: &BitSlice) -> Self {
         let bytes_needed = bytes_needed(bits.len());
         let mut bytes = BytesMut::with_capacity(bytes_needed);
@@ -68,6 +68,19 @@ impl Bits {
             inner: bytes.freeze(),
             bit_start: 0,
             bit_len: bits.len(),
+        }
+    }
+
+    /// Creates a new `Bits` instance from the given u8 slice by copying it.
+    pub fn copy_from_bytes(bytes: &[u8]) -> Self {
+        let mut target = BytesMut::with_capacity(bytes.len());
+        target.resize(bytes.len(), 0);
+        target.copy_from_slice(bytes);
+
+        Self {
+            inner: target.freeze(),
+            bit_start: 0,
+            bit_len: bytes.len() * 8,
         }
     }
 
