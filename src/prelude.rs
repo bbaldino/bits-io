@@ -7,6 +7,7 @@ pub use crate::bit_types::{from_raw_parts_mut, BitSlice, BitStore, BitVec};
 pub use crate::{bits, bitvec};
 
 // nsw-types re-export
+pub use nsw_types::from_bitslice::BitSliceUxExts;
 pub use nsw_types::*;
 
 // Core traits
