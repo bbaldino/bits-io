@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.6](https://github.com/bbaldino/bits-io/compare/v0.5.5...v0.5.6) - 2025-05-01
+
+### Added
+
+- re-export BitSliceUxExts
+
+### Fixed
+
+- fix partialeq impl for Bits
+
 ## [0.5.5](https://github.com/bbaldino/bits-io/compare/v0.5.4...v0.5.5) - 2025-04-30
 
 ### Added
