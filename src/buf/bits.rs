@@ -1,6 +1,7 @@
 use std::ops::{Deref, Range};
 
 use crate::prelude::*;
+use bitvec::{order::Msb0, view::BitView};
 use bytes::{Bytes, BytesMut};
 
 use super::util::bytes_needed;
@@ -12,7 +13,7 @@ use super::util::bytes_needed;
 
 /// A cheaply cloneable chunk of contiugous memory, built on top of `[bytes::Bytes`] but providing
 /// bit-level operations.  
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq)]
 pub struct Bits {
     pub(crate) inner: Bytes,
     /// The start of this instance's view of the underlying storage
@@ -213,6 +214,17 @@ impl Bits {
     pub(crate) fn inc_start_bits(&mut self, by: usize) {
         self.bit_len -= by;
         self.bit_start += by;
+    }
+}
+
+impl PartialEq for Bits {
+    fn eq(&self, other: &Self) -> bool {
+        if self.byte_aligned() && other.byte_aligned() {
+            self.chunk_bytes() == other.chunk_bytes()
+        } else {
+            self.inner.view_bits::<Msb0>()[self.bit_start..self.bit_start + self.bit_len]
+                == other.inner.view_bits::<Msb0>()[other.bit_start..other.bit_start + other.bit_len]
+        }
     }
 }
 
