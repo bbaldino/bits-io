@@ -10,15 +10,25 @@ pub trait BitBufExts: BitBuf {
         U: TryFrom<V>,
         U::Error: std::fmt::Debug,
     {
-        // Create a bitvec in which to load the value
-        let mut bits = BitVec::repeat(false, N);
-        let slice = bits.as_mut_bitslice();
-        // Copy the raw bits into the slice
-        self.try_copy_to_bit_slice(slice)?;
-        // Now 'load' the value from that slice according to the given ByteOrder.
-        let value: V = O::load(slice);
+        // If this buffer is chained to another there may be enough room to read the value but it
+        // may not be contiguous.  If it is, then we can read directly instead of copying to an
+        // intermediary first.
+        let slice = self.chunk_bits();
+        if slice.len() >= N {
+            let value: V = O::load(&slice[..N]);
+            self.advance_bits(N);
 
-        Ok(U::try_from(value).map_err(|_| std::io::ErrorKind::InvalidData)?)
+            Ok(U::try_from(value).map_err(|_| std::io::ErrorKind::InvalidData)?)
+        } else {
+            let mut bits = BitVec::repeat(false, N);
+            let slice = bits.as_mut_bitslice();
+            // Copy the raw bits into the slice
+            self.try_copy_to_bit_slice(slice)?;
+            // Now 'load' the value from that slice according to the given ByteOrder.
+            let value: V = O::load(slice);
+
+            Ok(U::try_from(value).map_err(|_| std::io::ErrorKind::InvalidData)?)
+        }
     }
 
     fn get_bool(&mut self) -> std::io::Result<bool> {

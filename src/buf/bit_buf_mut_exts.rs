@@ -14,12 +14,21 @@ pub trait BitBufMutExts: BitBufMut {
         // Convert the given value into the given integral type we're told it should map to (V).
         // E.g. u8, u16, u32.
         let value_integral: V = value.into();
-
-        let mut bits = BitVec::repeat(false, N);
-        let value_slice = bits.as_mut_bitslice();
-        O::store(value_slice, value_integral);
-        self.try_put_bit_slice(value_slice)?;
-        Ok(())
+        let slice = self.chunk_mut_bits();
+        // If this buffer is chained to another we may have enough space to store the value but it
+        // may not be contiguous.  If it is, then we can write directly into the slice instead of
+        // copying to an intermediary first
+        if slice.len() >= N {
+            O::store(&mut slice[..N], value_integral);
+            self.advance_mut_bits(N);
+            Ok(())
+        } else {
+            let mut bits = BitVec::repeat(false, N);
+            let value_slice = bits.as_mut_bitslice();
+            O::store(value_slice, value_integral);
+            self.try_put_bit_slice(value_slice)?;
+            Ok(())
+        }
     }
 
     fn put_bool(&mut self, value: bool) -> std::io::Result<()> {
