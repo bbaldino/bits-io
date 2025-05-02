@@ -11,11 +11,12 @@ pub trait BitBufMutExts: BitBufMut {
     where
         U: Into<V>,
     {
-        let mut bits = BitVec::repeat(false, N);
-        let value_slice = bits.as_mut_bitslice();
         // Convert the given value into the given integral type we're told it should map to (V).
         // E.g. u8, u16, u32.
         let value_integral: V = value.into();
+
+        let mut bits = BitVec::repeat(false, N);
+        let value_slice = bits.as_mut_bitslice();
         O::store(value_slice, value_integral);
         self.try_put_bit_slice(value_slice)?;
         Ok(())
@@ -54,6 +55,20 @@ pub trait BitBufMutExts: BitBufMut {
     }
 
     fn put_u8(&mut self, value: u8) -> std::io::Result<()> {
+        if self.byte_aligned_mut() {
+            if self.remaining_mut_bytes() < 1 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    format!(
+                        "Remaining bytes ({}) are less than the size of the source (1)",
+                        self.remaining_mut_bytes(),
+                    ),
+                ));
+            }
+            self.chunk_mut_bytes().write_byte(0, value);
+            self.advance_mut_bytes(1);
+            return Ok(());
+        }
         self.put_uN::<BigEndian, 8, u8, u8>(value)
     }
 
@@ -79,6 +94,20 @@ pub trait BitBufMutExts: BitBufMut {
         self.put_uN::<O, 15, u15, u16>(value)
     }
     fn put_u16<O: ByteOrder>(&mut self, value: u16) -> std::io::Result<()> {
+        if self.byte_aligned_mut() {
+            if self.remaining_mut_bytes() < 2 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    format!(
+                        "Remaining bytes ({}) are less than the size of the source (2)",
+                        self.remaining_mut_bytes(),
+                    ),
+                ));
+            }
+            let mut buf = [0u8; 2];
+            O::store_u16(&mut buf, value);
+            return self.try_put_slice_bytes(&buf);
+        }
         self.put_uN::<O, 16, u16, u16>(value)
     }
     fn put_u17<O: ByteOrder>(&mut self, value: u17) -> std::io::Result<()> {
@@ -103,6 +132,21 @@ pub trait BitBufMutExts: BitBufMut {
         self.put_uN::<O, 23, u23, u32>(value)
     }
     fn put_u24<O: ByteOrder>(&mut self, value: u24) -> std::io::Result<()> {
+        if self.byte_aligned_mut() {
+            if self.remaining_mut_bytes() < 3 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    format!(
+                        "Remaining bytes ({}) are less than the size of the source (3)",
+                        self.remaining_mut_bytes(),
+                    ),
+                ));
+            }
+
+            let mut buf = [0u8; 3];
+            O::store_u24(&mut buf, value);
+            return self.try_put_slice_bytes(&buf);
+        }
         self.put_uN::<O, 24, u24, u32>(value)
     }
     fn put_u25<O: ByteOrder>(&mut self, value: u25) -> std::io::Result<()> {
@@ -127,6 +171,20 @@ pub trait BitBufMutExts: BitBufMut {
         self.put_uN::<O, 31, u31, u32>(value)
     }
     fn put_u32<O: ByteOrder>(&mut self, value: u32) -> std::io::Result<()> {
+        if self.byte_aligned_mut() {
+            if self.remaining_mut_bytes() < 4 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    format!(
+                        "Remaining bytes ({}) are less than the size of the source (4)",
+                        self.remaining_mut_bytes(),
+                    ),
+                ));
+            }
+            let mut buf = [0u8; 4];
+            O::store_u32(&mut buf, value);
+            return self.try_put_slice_bytes(&buf);
+        }
         self.put_uN::<O, 32, u32, u32>(value)
     }
 }

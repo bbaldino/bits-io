@@ -151,7 +151,7 @@ pub trait BitBufMut {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::UnexpectedEof,
                 format!(
-                    "Remaining  bytes ({}) are less than the size of the source ({})",
+                    "Remaining bytes ({}) are less than the size of the source ({})",
                     self.remaining_mut_bytes(),
                     src.len()
                 ),

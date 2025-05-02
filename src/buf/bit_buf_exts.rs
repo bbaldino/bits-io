@@ -54,6 +54,19 @@ pub trait BitBufExts: BitBuf {
     }
 
     fn get_u8(&mut self) -> std::io::Result<u8> {
+        if self.byte_aligned() {
+            if self.remaining_bytes() < 1 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    format!(
+                        "Remaining bytes ({}) are less than the size of the dest (1)",
+                        self.remaining_bytes(),
+                    ),
+                ));
+            }
+            self.advance_bytes(1);
+            return Ok(self.chunk_bytes()[0]);
+        }
         self.get_uN::<BigEndian, 8, u8, u8>()
     }
 
@@ -79,6 +92,20 @@ pub trait BitBufExts: BitBuf {
         self.get_uN::<O, 15, u15, u16>()
     }
     fn get_u16<O: ByteOrder>(&mut self) -> std::io::Result<u16> {
+        if self.byte_aligned() {
+            if self.remaining_bytes() < 2 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    format!(
+                        "Remaining bytes ({}) are less than the size of the dest (2)",
+                        self.remaining_bytes(),
+                    ),
+                ));
+            }
+            let mut dest = [0u8; 2];
+            self.try_copy_to_slice_bytes(&mut dest)?;
+            return Ok(O::load_u16(&dest));
+        }
         self.get_uN::<O, 16, u16, u16>()
     }
     fn get_u17<O: ByteOrder>(&mut self) -> std::io::Result<u17> {
@@ -103,6 +130,20 @@ pub trait BitBufExts: BitBuf {
         self.get_uN::<O, 23, u23, u32>()
     }
     fn get_u24<O: ByteOrder>(&mut self) -> std::io::Result<u24> {
+        if self.byte_aligned() {
+            if self.remaining_bytes() < 3 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    format!(
+                        "Remaining bytes ({}) are less than the size of the dest (3)",
+                        self.remaining_bytes(),
+                    ),
+                ));
+            }
+            let mut dest = [0u8; 3];
+            self.try_copy_to_slice_bytes(&mut dest)?;
+            return Ok(O::load_u24(&dest));
+        }
         self.get_uN::<O, 24, u24, u32>()
     }
     fn get_u25<O: ByteOrder>(&mut self) -> std::io::Result<u25> {
@@ -127,6 +168,20 @@ pub trait BitBufExts: BitBuf {
         self.get_uN::<O, 31, u31, u32>()
     }
     fn get_u32<O: ByteOrder>(&mut self) -> std::io::Result<u32> {
+        if self.byte_aligned() {
+            if self.remaining_bytes() < 4 {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    format!(
+                        "Remaining bytes ({}) are less than the size of the dest (4)",
+                        self.remaining_bytes(),
+                    ),
+                ));
+            }
+            let mut dest = [0u8; 4];
+            self.try_copy_to_slice_bytes(&mut dest)?;
+            return Ok(O::load_u32(&dest));
+        }
         self.get_uN::<O, 32, u32, u32>()
     }
 }
