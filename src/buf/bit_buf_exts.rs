@@ -11,7 +11,7 @@ pub trait BitBufExts: BitBuf {
         U::Error: std::fmt::Debug,
     {
         // If this buffer is chained to another there may be enough room to read the value but it
-        // may not be continuguous.  If it is, then we can read directly instead of copying to an
+        // may not be contiguous.  If it is, then we can read directly instead of copying to an
         // intermediary first.
         let slice = self.chunk_bits();
         if slice.len() >= N {

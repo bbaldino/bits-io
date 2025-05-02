@@ -16,7 +16,7 @@ pub trait BitBufMutExts: BitBufMut {
         let value_integral: V = value.into();
         let slice = self.chunk_mut_bits();
         // If this buffer is chained to another we may have enough space to store the value but it
-        // may not be continuguous.  If it is, then we can write directly into the slice instead of
+        // may not be contiguous.  If it is, then we can write directly into the slice instead of
         // copying to an intermediary first
         if slice.len() >= N {
             O::store(&mut slice[..N], value_integral);
