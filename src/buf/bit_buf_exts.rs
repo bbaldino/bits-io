@@ -64,8 +64,9 @@ pub trait BitBufExts: BitBuf {
                     ),
                 ));
             }
+            let value = self.chunk_bytes()[0];
             self.advance_bytes(1);
-            return Ok(self.chunk_bytes()[0]);
+            return Ok(value);
         }
         self.get_uN::<BigEndian, 8, u8, u8>()
     }
