@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1](https://github.com/bbaldino/bits-io/compare/v0.6.0...v0.6.1) - 2025-05-02
+
+### Fixed
+
+- fix get_u8
+
 ## [0.6.0](https://github.com/bbaldino/bits-io/compare/v0.5.6...v0.6.0) - 2025-05-02
 
 ### Fixed
