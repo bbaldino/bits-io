@@ -12,3 +12,10 @@ nsw-types = { version = "0.1.13", features = ["std", "bitvec"] }
 bitvec = "1.0.1"
 bytes = "1.10.1"
 funty = "2.0.0"
+
+[dev-dependencies]
+divan = "0.1.21"
+
+[[bench]]
+name = "put_get_ux"
+harness = false
