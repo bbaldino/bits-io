@@ -36,3 +36,12 @@ counterparts:
 | **BitWrite**     | A trait analagous `std::io::Write`, enabling both bit- and byte-level writes. |
 
 ---
+
+## FAQ
+
+### If this is just `bytes` with extra bit-level APIs, why not have `Buf` and `BufMut` be supertraits of `BitBuf` and `BitBufMut`?
+
+The problem there is that then I wouldn't be able to implement `BitBuf` and
+`BitBufMut` for bit-specific types I wanted to support like `BitSlice`.
+
+But, `Bits` and `BitsMut` do implement `Buf` and `Buf` & `BufMut` respectively.
